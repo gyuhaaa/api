@@ -1,29 +1,32 @@
 import { connection } from "../db_connection.js";
 
-connection.connect((err) => {
-  if (err) {
-    console.error("데이터베이스 연결에 실패했습니다:", err);
-    return;
-  }
-  console.log("데이터베이스에 성공적으로 연결되었습니다.");
-});
-
 // 쿼리 실행
 // var query = "SHOW DATABASES";
 // var query = "SHOW TABLES";
 
+// 인코딩 문제
+// var query = "SHOW VARIABLES LIKE 'character_set_database'";
+// var query = "SHOW VARIABLES LIKE 'collation_database'";
+// var query = "SHOW CREATE DATABASE flexir";
+// var query = "SHOW CREATE TABLE flexir.order_common";
+
+// var query =
+//   "ALTER DATABASE flexir CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci";
+
+// DB 생성
 // var query = "CREATE DATABASE flexir";
-var query = "USE flexir";
+// var query = "USE flexir";
 
-connection.query(query, (err, results, fields) => {
-  if (err) {
-    console.error("쿼리 실행에 실패했습니다:", err);
-    return;
-  }
+// connection.query(query, (err, results, fields) => {
+//   if (err) {
+//     console.error("쿼리 실행에 실패했습니다:", err);
+//     return;
+//   }
 
-  console.log("쿼리 결과:", results);
-});
+//   console.log("쿼리 결과:", results);
+// });
 
+// 테이블 삭제
 // var query = "DROP TABLE `token`";
 // var query = "DROP TABLE `offer`";
 // var query = "DROP TABLE `order_common`";
@@ -35,8 +38,8 @@ connection.query(query, (err, results, fields) => {
 // var query = "DROP TABLE `email_log`";
 
 // var query = "DROP TABLE `token`, `offer`, `order_common`, `order_buy`, `order_sell`, `index`, `config`, `user`, `email_log`";
-// var query = "DROP TABLE `token`, `network`, `index`, `config`, `user`, `email_log`";
 
+// 테이블 생성
 // 네트워크 정보 테이블
 var query =
   "CREATE TABLE network (" +
