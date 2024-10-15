@@ -1,5 +1,4 @@
-db_connection.ts
-../db_setting.ts
+db_connection.js
 
 ### Node ###
 # Logs

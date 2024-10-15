@@ -15,18 +15,19 @@ app.use(express.json());
 
 // POST /a 경로에 대한 처리
 app.post("/newoffer", (req: Request, res: Response, next: NextFunction) => {
+  const { offer_id, order_id, value, status } = req.body;
   var query =
+    "USE flexir;" +
     "INSERT INTO `offer` (offer_id, order_id, value, status) VALUES " +
-    "('token', 'status', 1, 'active'), " +
-    "('token', 'status', 2, 'inactive'), " +
-    "('token', 'status', 3, 'settle'), " +
-    "('order', 'status', 1, 'open'), " +
-    "('order', 'status', 2, 'filled'), " +
-    "('order', 'status', 3, 'canceled'), " +
-    "('order', 'status', 4, 'insale'), " +
-    "('offer', 'status', 0, 'none'), " +
-    "('offer', 'status', 1, 'buy'), " +
-    "('offer', 'status', 2, 'sell') ";
+    "(" +
+    offer_id +
+    ", " +
+    order_id +
+    ", " +
+    value +
+    ", " +
+    status +
+    ")";
 
   // 쿼리 실행
   connection.query(
@@ -38,6 +39,7 @@ app.post("/newoffer", (req: Request, res: Response, next: NextFunction) => {
     ) => {
       if (err) {
         res.json({
+          result: 0,
           message: err.message, // 에러 메시지 전달
           data: {},
         });
@@ -46,6 +48,7 @@ app.post("/newoffer", (req: Request, res: Response, next: NextFunction) => {
 
       // 성공 시 결과 반환
       res.json({
+        result: 1,
         message: "success",
         data: results, // 쿼리 결과를 반환
       });
@@ -56,6 +59,7 @@ app.post("/newoffer", (req: Request, res: Response, next: NextFunction) => {
   connection.end();
 });
 
+// POST /a 경로에 대한 처리
 app.post("/a", (req: Request, res: Response, next: NextFunction) => {
   const { offer_id, value } = req.body;
 
@@ -95,6 +99,16 @@ app.post("/c", (req: Request, res: Response, next: NextFunction) => {
   res.json({
     message: "This is the response from /c",
     data: { keyC: "valueC" },
+  });
+});
+
+// POST /d 경로에 대한 처리
+app.post("/d", (req: Request, res: Response, next: NextFunction) => {
+  console.log("POST /d request received.");
+
+  res.json({
+    message: "This is the response from /d",
+    data: { keyD: "valueD" },
   });
 });
 

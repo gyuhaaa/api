@@ -1,161 +1,3 @@
-import { connection } from "../db_connection";
-
-connection.connect((err) => {
-  if (err) {
-    console.error("데이터베이스 연결에 실패했습니다:", err);
-    return;
-  }
-  console.log("데이터베이스에 성공적으로 연결되었습니다.");
-});
-
-// 쿼리 실행
-// var query2 = "SHOW DATABASES";
-// var query2 = "SHOW TABLES";
-
-// var query2 = "CREATE DATABASE flexir";
-// var query2 = "USE flexir";
-
-// var query2 = "DROP TABLE `order_common`";
-
-// 토큰 정보 테이블
-var query2 =
-  "CREATE TABLE token (" +
-  "token_id INT AUTO_INCREMENT PRIMARY KEY, " +
-  "token_name VARCHAR(100) NOT NULL, " +
-  "token_addr VARCHAR(42) NOT NULL, " +
-  "telegram VARCHAR(100), " +
-  "X VARCHAR(100), " +
-  "discord VARCHAR(100), " +
-  "homepage VARCHAR(100), " +
-  "settle_time DATETIME, " +
-  "settle_duration DATETIME GENERATED ALWAYS AS (settle_time + INTERVAL 1 DAY) STORED, " +
-  "settle_rate DECIMAL(65, 16), " +
-  "status INT NOT NULL, " +
-  "reg_date DATETIME DEFAULT CURRENT_TIMESTAMP, " +
-  "mod_date DATETIME " +
-  ")";
-var query2 = "SELECT * from token";
-var query2 =
-  "INSERT INTO token (token_name, token_addr, status) VALUES ('GRASS', '0xd66d861fb4df099652c63cf472e6b7de95725bae', 1)";
-var query2 = "SELECT * from token";
-var query2 = "UPDATE token SET settle_time = null WHERE token_id = 1";
-var query2 = "SELECT * from token";
-
-// offer 테이블
-var query2 =
-  "CREATE TABLE offer (" +
-  "offer_id INT PRIMARY KEY, " +
-  "order_id INT, " +
-  "value INT NOT NULL, " +
-  "status INT NOT NULL, " +
-  "reg_date DATETIME DEFAULT CURRENT_TIMESTAMP, " +
-  "mod_date DATETIME " +
-  ")";
-
-// order_common 테이블
-var query2 =
-  "CREATE TABLE order_common (" +
-  "common_id INT PRIMARY KEY, " +
-  "token_id INT NOT NULL, " +
-  "collateral INT NOT NULL, " +
-  "amount INT NOT NULL, " +
-  "exchange_token VARCHAR(42) NOT NULL, " +
-  "full_match BOOLEAN, " +
-  "reg_date DATETIME DEFAULT CURRENT_TIMESTAMP, " +
-  "mod_date DATETIME " +
-  ")";
-
-// order 테이블
-var query2 =
-  "CREATE TABLE `order` (" +
-  "order_id INT PRIMARY KEY, " +
-  "common_id INT NOT NULL, " +
-  "owner VARCHAR(42) NOT NULL, " +
-  "amount INT NOT NULL, " +
-  "status INT NOT NULL, " +
-  "reg_date DATETIME DEFAULT CURRENT_TIMESTAMP, " +
-  "mod_date DATETIME " +
-  ")";
-var query2 =
-  "CREATE TABLE `order_buy` (" +
-  "order_id INT PRIMARY KEY, " +
-  "common_id INT NOT NULL, " +
-  "owner VARCHAR(42) NOT NULL, " +
-  "amount INT NOT NULL, " +
-  "status INT NOT NULL, " +
-  "reg_date DATETIME DEFAULT CURRENT_TIMESTAMP, " +
-  "mod_date DATETIME " +
-  ")";
-var query2 =
-  "CREATE TABLE `order_sell` (" +
-  "order_id INT PRIMARY KEY, " +
-  "common_id INT NOT NULL, " +
-  "owner VARCHAR(42) NOT NULL, " +
-  "amount INT NOT NULL, " +
-  "status INT NOT NULL, " +
-  "reg_date DATETIME DEFAULT CURRENT_TIMESTAMP, " +
-  "mod_date DATETIME " +
-  ")";
-
-// index 테이블
-var query2 =
-  "CREATE TABLE `index` (" +
-  "id INT AUTO_INCREMENT PRIMARY KEY, " +
-  "table_name VARCHAR(100) NOT NULL, " +
-  "column_name VARCHAR(100) NOT NULL, " +
-  "column_value INT NOT NULL, " +
-  "description VARCHAR(100) NOT NULL, " +
-  "reg_date DATETIME DEFAULT CURRENT_TIMESTAMP, " +
-  "mod_date DATETIME " +
-  ")";
-var query2 =
-  "INSERT INTO `index` (table_name, column_name, column_value, description) VALUES " +
-  "('token', 'status', 1, 'active'), " +
-  "('token', 'status', 2, 'inactive'), " +
-  "('token', 'status', 3, 'settle'), " +
-  "('order', 'status', 1, 'open'), " +
-  "('order', 'status', 2, 'filled'), " +
-  "('order', 'status', 3, 'canceled'), " +
-  "('order', 'status', 4, 'insale'), " +
-  "('offer', 'status', 0, 'none'), " +
-  "('offer', 'status', 1, 'buy'), " +
-  "('offer', 'status', 2, 'sell') ";
-var query2 = "SELECT * from `index`";
-
-// 사용자 지갑 주소, 이메일 테이블
-var query2 =
-  "CREATE TABLE user (" +
-  "user_id INT AUTO_INCREMENT PRIMARY KEY, " +
-  "user_addr VARCHAR(42) NOT NULL, " +
-  "email VARCHAR(200), " +
-  "use_yn VARCHAR(1) NOT NULL, " +
-  "reg_date DATETIME DEFAULT CURRENT_TIMESTAMP, " +
-  "mod_date DATETIME " +
-  ")";
-
-// 이메일 발송 내역 테이블
-var query2 =
-  "CREATE TABLE email_log (" +
-  "id INT AUTO_INCREMENT PRIMARY KEY, " +
-  "user_id INT NOT NULL, " +
-  "title VARCHAR(8000) NOT NULL, " +
-  "content VARCHAR(8000) NOT NULL, " +
-  "reg_date DATETIME DEFAULT CURRENT_TIMESTAMP " +
-  ")";
-
-// 쿼리 실행
-connection.query(query2, (err, results, fields) => {
-  if (err) {
-    console.error("쿼리 실행에 실패했습니다:", err);
-    return;
-  }
-
-  console.log("쿼리 결과:", results);
-});
-
-// db 연결 종료
-connection.end();
-
 // (terminal) npm i web3
 // 현용님 infura key : 2a34b908696f4275b84ae15338cc6b8a
 var { Web3 } = require("web3");
@@ -1448,6 +1290,15 @@ var c_abi = [
 var contract = new web3.eth.Contract(c_abi, c_addr);
 
 // 이벤트 구독
+contract.events.NewToken().on("data", function (event) {
+  console.log("NewToken event: ", event);
+});
+contract.events.NewCommon().on("data", function (event) {
+  console.log("NewCommon event: ", event);
+});
+contract.events.NewOrder().on("data", function (event) {
+  console.log("NewOrder event: ", event);
+});
 contract.events.NewOffer().on("data", function (event) {
   console.log("NewOffer event: ", event);
   console.log("returnValues: ", event.returnValues);
@@ -1462,11 +1313,14 @@ contract.events.NewOffer().on("data", function (event) {
   console.log("fullMatch: ", event.returnValues.fullMatch);
   console.log("doer: ", event.returnValues.doer);
 });
-contract.events.NewToken().on("data", function (event) {
-  console.log("NewToken event: ", event);
+contract.events.FillPartialOffer().on("data", function (event) {
+  console.log("FillPartialOffer event: ", event);
 });
-contract.events.NewOrder().on("data", function (event) {
-  console.log("NewOrder event: ", event);
+contract.events.FillOffer().on("data", function (event) {
+  console.log("FillOffer event: ", event);
+});
+contract.events.FillResaleOffer().on("data", function (event) {
+  console.log("FillResaleOffer event: ", event);
 });
 contract.events.SettleFilled().on("data", function (event) {
   console.log("SettleFilled event: ", event);
@@ -1477,14 +1331,17 @@ contract.events.SettleCancelled().on("data", function (event) {
 contract.events.CancelOrder().on("data", function (event) {
   console.log("CancelOrder event: ", event);
 });
-contract.events.CancelOffer().on("data", function (event) {
-  console.log("CancelOffer event: ", event);
-});
-contract.events.UpdateAcceptedTokens().on("data", function (event) {
-  console.log("UpdateAcceptedTokens event: ", event);
-});
+// contract.events.CancelOffer().on("data", function (event) {
+//   console.log("CancelOffer event: ", event);
+// });
+// contract.events.UpdateAcceptedTokens().on("data", function (event) {
+//   console.log("UpdateAcceptedTokens event: ", event);
+// });
 contract.events.CloseOffer().on("data", function (event) {
   console.log("CloseOffer event: ", event);
+});
+contract.events.UpdateConfig().on("data", function (event) {
+  console.log("UpdateConfig event: ", event);
 });
 contract.events.TokenToSettlePhase().on("data", function (event) {
   console.log("TokenToSettlePhase event: ", event);
@@ -1495,36 +1352,33 @@ contract.events.UpdateTokenStatus().on("data", function (event) {
 contract.events.TokenForceCancelSettlePhase().on("data", function (event) {
   console.log("TokenForceCancelSettlePhase event: ", event);
 });
-contract.events.Settle2Steps().on("data", function (event) {
-  console.log("Settle2Steps event: ", event);
-});
+// contract.events.Settle2Steps().on("data", function (event) {
+//   console.log("Settle2Steps event: ", event);
+// });
 contract.events.UpdateTokenSettleDuration().on("data", function (event) {
   console.log("UpdateTokenSettleDuration event: ", event);
 });
-contract.events.NewResaleOffer().on("data", function (event) {
-  console.log("NewResaleOffer event: ", event);
-});
-contract.events.ResaleOfferFilled().on("data", function (event) {
-  console.log("ResaleOfferFilled event: ", event);
-});
 
 // 이벤트 구독 해지
-await contract.events.NewOffer().unsubscribe();
 await contract.events.NewToken().unsubscribe();
+await contract.events.NewCommon().unsubscribe();
 await contract.events.NewOrder().unsubscribe();
+await contract.events.NewOffer().unsubscribe();
+await contract.events.FillPartialOffer().unsubscribe();
+await contract.events.FillOffer().unsubscribe();
+await contract.events.FillResaleOffer().unsubscribe();
 await contract.events.SettleFilled().unsubscribe();
 await contract.events.SettleCancelled().unsubscribe();
 await contract.events.CancelOrder().unsubscribe();
-await contract.events.CancelOffer().unsubscribe();
-await contract.events.UpdateAcceptedTokens().unsubscribe();
+// await contract.events.CancelOffer().unsubscribe();
+// await contract.events.UpdateAcceptedTokens().unsubscribe();
 await contract.events.CloseOffer().unsubscribe();
+await contract.events.UpdateConfig().unsubscribe();
 await contract.events.TokenToSettlePhase().unsubscribe();
 await contract.events.UpdateTokenStatus().unsubscribe();
 await contract.events.TokenForceCancelSettlePhase().unsubscribe();
-await contract.events.Settle2Steps().unsubscribe();
+// await contract.events.Settle2Steps().unsubscribe();
 await contract.events.UpdateTokenSettleDuration().unsubscribe();
-await contract.events.NewResaleOffer().unsubscribe();
-await contract.events.ResaleOfferFilled().unsubscribe();
 
 // flexir와 무관한 내용 / just reference
 async function getPrice() {
@@ -1538,7 +1392,6 @@ async function getPrice() {
 }
 
 async function main() {
-  // Create subscription
   const subscription = await web3.eth.subscribe("newHeads");
 
   subscription.on("data", async () => {
@@ -1546,4 +1399,5 @@ async function main() {
     console.log("Price:", price);
   });
 }
+
 main().catch(console.error);
