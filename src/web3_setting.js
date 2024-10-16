@@ -5,17 +5,13 @@ import { connection } from "../db_connection.js";
 // var { Web3 } = require("web3");
 import Web3 from "web3";
 
-// ethereum sepolia
+// ethereum sepolia network
 var web3 = new Web3(
   "wss://sepolia.infura.io/ws/v3/2a34b908696f4275b84ae15338cc6b8a"
 );
-// arbitrum sepolia
-var web3 = new Web3(
-  "wss://arbitrum-sepolia.infura.io/ws/v3/2a34b908696f4275b84ae15338cc6b8a"
-);
 
 // flexir 컨트랙트 세팅
-var eth_c_addr = "0x48EfDb7b1995432fb733FadE4Aa4b7CB03e6cF03";
+var eth_c_addr = "0x7A001c1b5df0b7D2Ef0e6d74a503690C52E2b549";
 var eth_c_abi = [
   {
     inputs: [],
@@ -74,18 +70,18 @@ var eth_c_abi = [
     inputs: [
       {
         internalType: "uint256",
-        name: "originalOrderId",
+        name: "orderId",
         type: "uint256",
       },
       {
-        internalType: "uint256",
+        internalType: "uint128",
         name: "value",
-        type: "uint256",
+        type: "uint128",
       },
       {
-        internalType: "uint8",
-        name: "reofferStatus",
-        type: "uint8",
+        internalType: "bool",
+        name: "isBuyerSelling",
+        type: "bool",
       },
     ],
     name: "createResaleOffer",
@@ -106,9 +102,9 @@ var eth_c_abi = [
         type: "uint256",
       },
       {
-        internalType: "uint256",
+        internalType: "uint64",
         name: "amount",
-        type: "uint256",
+        type: "uint64",
       },
     ],
     name: "fillOffer",
@@ -119,29 +115,34 @@ var eth_c_abi = [
   {
     inputs: [
       {
-        internalType: "enum PointMarket.OfferType",
-        name: "offerType",
-        type: "uint8",
-      },
-      {
         internalType: "bytes32",
         name: "tokenId",
         type: "bytes32",
       },
       {
-        internalType: "uint256",
-        name: "amount",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "value",
-        type: "uint256",
-      },
-      {
         internalType: "address",
         name: "exchangeToken",
         type: "address",
+      },
+      {
+        internalType: "uint64",
+        name: "amount",
+        type: "uint64",
+      },
+      {
+        internalType: "uint128",
+        name: "value",
+        type: "uint128",
+      },
+      {
+        internalType: "bool",
+        name: "isBuy",
+        type: "bool",
+      },
+      {
+        internalType: "bool",
+        name: "fullMatch",
+        type: "bool",
       },
     ],
     name: "newOffer",
@@ -173,10 +174,8 @@ var eth_c_abi = [
   },
   {
     inputs: [],
-    name: "renounceOwnership",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    name: "ReentrancyGuardReentrantCall",
+    type: "error",
   },
   {
     inputs: [
@@ -199,22 +198,22 @@ var eth_c_abi = [
         type: "uint256",
       },
       {
-        indexed: false,
-        internalType: "uint256",
-        name: "refundValue",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "refundFee",
-        type: "uint256",
-      },
-      {
         indexed: true,
-        internalType: "address",
-        name: "doer",
-        type: "address",
+        internalType: "uint256",
+        name: "orderId",
+        type: "uint256",
+      },
+      {
+        indexed: false,
+        internalType: "bool",
+        name: "isBuy",
+        type: "bool",
+      },
+      {
+        indexed: false,
+        internalType: "enum PointMarket.OrderStatus",
+        name: "status",
+        type: "uint8",
       },
     ],
     name: "CancelOffer",
@@ -259,17 +258,121 @@ var eth_c_abi = [
     type: "event",
   },
   {
+    anonymous: false,
     inputs: [
       {
+        indexed: false,
         internalType: "uint256",
-        name: "resaleOfferId",
+        name: "offerId",
         type: "uint256",
       },
+      {
+        indexed: false,
+        internalType: "uint256",
+        name: "orderId",
+        type: "uint256",
+      },
+      {
+        indexed: false,
+        internalType: "uint256",
+        name: "commonId",
+        type: "uint256",
+      },
+      {
+        indexed: false,
+        internalType: "bool",
+        name: "isBuy",
+        type: "bool",
+      },
+      {
+        indexed: false,
+        internalType: "uint64",
+        name: "amount",
+        type: "uint64",
+      },
+      {
+        indexed: false,
+        internalType: "address",
+        name: "owner",
+        type: "address",
+      },
     ],
-    name: "fillResaleOffer",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    name: "FillOffer",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: false,
+        internalType: "uint256",
+        name: "offerId",
+        type: "uint256",
+      },
+      {
+        indexed: false,
+        internalType: "uint256",
+        name: "orderId",
+        type: "uint256",
+      },
+      {
+        indexed: false,
+        internalType: "uint256",
+        name: "partialOrderId",
+        type: "uint256",
+      },
+      {
+        indexed: false,
+        internalType: "bool",
+        name: "isBuy",
+        type: "bool",
+      },
+      {
+        indexed: false,
+        internalType: "uint256",
+        name: "commonId",
+        type: "uint256",
+      },
+      {
+        indexed: false,
+        internalType: "uint64",
+        name: "amount",
+        type: "uint64",
+      },
+    ],
+    name: "FillPartialOffer",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: false,
+        internalType: "uint256",
+        name: "offerId",
+        type: "uint256",
+      },
+      {
+        indexed: false,
+        internalType: "uint256",
+        name: "orderId",
+        type: "uint256",
+      },
+      {
+        indexed: false,
+        internalType: "address",
+        name: "owner",
+        type: "address",
+      },
+      {
+        indexed: false,
+        internalType: "bool",
+        name: "isBuy",
+        type: "bool",
+      },
+    ],
+    name: "FillResaleOffer",
+    type: "event",
   },
   {
     inputs: [
@@ -288,22 +391,28 @@ var eth_c_abi = [
     anonymous: false,
     inputs: [
       {
-        indexed: true,
+        indexed: false,
         internalType: "uint256",
-        name: "id",
+        name: "commonId",
         type: "uint256",
       },
       {
         indexed: false,
-        internalType: "enum PointMarket.OfferType",
-        name: "offerType",
-        type: "uint8",
-      },
-      {
-        indexed: true,
         internalType: "bytes32",
         name: "tokenId",
         type: "bytes32",
+      },
+      {
+        indexed: false,
+        internalType: "uint128",
+        name: "collateral",
+        type: "uint128",
+      },
+      {
+        indexed: false,
+        internalType: "uint64",
+        name: "amount",
+        type: "uint64",
       },
       {
         indexed: false,
@@ -313,33 +422,40 @@ var eth_c_abi = [
       },
       {
         indexed: false,
-        internalType: "uint256",
-        name: "amount",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "value",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "collateral",
-        type: "uint256",
-      },
-      {
-        indexed: false,
         internalType: "bool",
         name: "fullMatch",
         type: "bool",
       },
+    ],
+    name: "NewCommon",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
       {
-        indexed: true,
-        internalType: "address",
-        name: "doer",
-        type: "address",
+        indexed: false,
+        internalType: "uint256",
+        name: "offerId",
+        type: "uint256",
+      },
+      {
+        indexed: false,
+        internalType: "uint256",
+        name: "orderId",
+        type: "uint256",
+      },
+      {
+        indexed: false,
+        internalType: "uint128",
+        name: "collateral",
+        type: "uint128",
+      },
+      {
+        indexed: false,
+        internalType: "bool",
+        name: "isBuy",
+        type: "bool",
       },
     ],
     name: "NewOffer",
@@ -351,84 +467,35 @@ var eth_c_abi = [
       {
         indexed: false,
         internalType: "uint256",
-        name: "id",
-        type: "uint256",
-      },
-      {
-        indexed: true,
-        internalType: "uint256",
-        name: "offerId",
+        name: "orderId",
         type: "uint256",
       },
       {
         indexed: false,
+        internalType: "address",
+        name: "owner",
+        type: "address",
+      },
+      {
+        indexed: false,
+        internalType: "bool",
+        name: "isBuy",
+        type: "bool",
+      },
+      {
+        indexed: false,
         internalType: "uint256",
+        name: "commonId",
+        type: "uint256",
+      },
+      {
+        indexed: false,
+        internalType: "uint64",
         name: "amount",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "value",
-        type: "uint256",
-      },
-      {
-        indexed: true,
-        internalType: "address",
-        name: "seller",
-        type: "address",
-      },
-      {
-        indexed: true,
-        internalType: "address",
-        name: "buyer",
-        type: "address",
+        type: "uint64",
       },
     ],
     name: "NewOrder",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "offerId",
-        type: "uint256",
-      },
-      {
-        indexed: true,
-        internalType: "uint256",
-        name: "originalOrderId",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "amount",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "value",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint8",
-        name: "reofferStatus",
-        type: "uint8",
-      },
-      {
-        indexed: true,
-        internalType: "address",
-        name: "seller",
-        type: "address",
-      },
-    ],
-    name: "NewResaleOffer",
     type: "event",
   },
   {
@@ -470,41 +537,11 @@ var eth_c_abi = [
     type: "event",
   },
   {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: true,
-        internalType: "uint256",
-        name: "resaleOfferId",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "amount",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "value",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "address",
-        name: "buyer",
-        type: "address",
-      },
-      {
-        indexed: false,
-        internalType: "address",
-        name: "seller",
-        type: "address",
-      },
-    ],
-    name: "ResaleOfferFilled",
-    type: "event",
+    inputs: [],
+    name: "renounceOwnership",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
   },
   {
     inputs: [
@@ -566,28 +603,10 @@ var eth_c_abi = [
     anonymous: false,
     inputs: [
       {
-        indexed: true,
+        indexed: false,
         internalType: "uint256",
         name: "orderId",
         type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "value",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "fee",
-        type: "uint256",
-      },
-      {
-        indexed: true,
-        internalType: "address",
-        name: "doer",
-        type: "address",
       },
     ],
     name: "SettleCancelled",
@@ -610,28 +629,10 @@ var eth_c_abi = [
     anonymous: false,
     inputs: [
       {
-        indexed: true,
+        indexed: false,
         internalType: "uint256",
         name: "orderId",
         type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "value",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "fee",
-        type: "uint256",
-      },
-      {
-        indexed: true,
-        internalType: "address",
-        name: "doer",
-        type: "address",
       },
     ],
     name: "SettleFilled",
@@ -763,34 +764,6 @@ var eth_c_abi = [
     type: "event",
   },
   {
-    inputs: [
-      {
-        internalType: "address",
-        name: "feeWallet_",
-        type: "address",
-      },
-      {
-        internalType: "uint256",
-        name: "feeSettle_",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "feeRefund_",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "pledgeRate_",
-        type: "uint256",
-      },
-    ],
-    name: "updateConfig",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
     anonymous: false,
     inputs: [
       {
@@ -902,6 +875,34 @@ var eth_c_abi = [
   {
     inputs: [
       {
+        internalType: "address",
+        name: "feeWallet_",
+        type: "address",
+      },
+      {
+        internalType: "uint256",
+        name: "feeSettle_",
+        type: "uint256",
+      },
+      {
+        internalType: "uint128",
+        name: "feeRefund_",
+        type: "uint128",
+      },
+      {
+        internalType: "uint128",
+        name: "pledgeRate_",
+        type: "uint128",
+      },
+    ],
+    name: "updateConfig",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
         internalType: "bytes32",
         name: "tokenId",
         type: "bytes32",
@@ -918,26 +919,146 @@ var eth_c_abi = [
     type: "function",
   },
   {
+    stateMutability: "payable",
+    type: "receive",
+  },
+  {
     inputs: [
       {
-        internalType: "address",
-        name: "_token",
-        type: "address",
-      },
-      {
-        internalType: "address",
-        name: "_to",
-        type: "address",
+        internalType: "uint256",
+        name: "commonId",
+        type: "uint256",
       },
     ],
-    name: "withdrawStuckToken",
-    outputs: [],
-    stateMutability: "nonpayable",
+    name: "getCommon",
+    outputs: [
+      {
+        components: [
+          {
+            internalType: "bytes32",
+            name: "tokenId",
+            type: "bytes32",
+          },
+          {
+            internalType: "uint128",
+            name: "collateral",
+            type: "uint128",
+          },
+          {
+            internalType: "uint64",
+            name: "amount",
+            type: "uint64",
+          },
+          {
+            internalType: "address",
+            name: "exchangeToken",
+            type: "address",
+          },
+          {
+            internalType: "bool",
+            name: "fullMatch",
+            type: "bool",
+          },
+        ],
+        internalType: "struct PointMarket.OrderCommon",
+        name: "",
+        type: "tuple",
+      },
+    ],
+    stateMutability: "view",
     type: "function",
   },
   {
-    stateMutability: "payable",
-    type: "receive",
+    inputs: [
+      {
+        internalType: "uint256",
+        name: "offerId",
+        type: "uint256",
+      },
+    ],
+    name: "getCommonByOfferId",
+    outputs: [
+      {
+        components: [
+          {
+            internalType: "bytes32",
+            name: "tokenId",
+            type: "bytes32",
+          },
+          {
+            internalType: "uint128",
+            name: "collateral",
+            type: "uint128",
+          },
+          {
+            internalType: "uint64",
+            name: "amount",
+            type: "uint64",
+          },
+          {
+            internalType: "address",
+            name: "exchangeToken",
+            type: "address",
+          },
+          {
+            internalType: "bool",
+            name: "fullMatch",
+            type: "bool",
+          },
+        ],
+        internalType: "struct PointMarket.OrderCommon",
+        name: "",
+        type: "tuple",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "uint256",
+        name: "orderId",
+        type: "uint256",
+      },
+    ],
+    name: "getCommonByOrderId",
+    outputs: [
+      {
+        components: [
+          {
+            internalType: "bytes32",
+            name: "tokenId",
+            type: "bytes32",
+          },
+          {
+            internalType: "uint128",
+            name: "collateral",
+            type: "uint128",
+          },
+          {
+            internalType: "uint64",
+            name: "amount",
+            type: "uint64",
+          },
+          {
+            internalType: "address",
+            name: "exchangeToken",
+            type: "address",
+          },
+          {
+            internalType: "bool",
+            name: "fullMatch",
+            type: "bool",
+          },
+        ],
+        internalType: "struct PointMarket.OrderCommon",
+        name: "",
+        type: "tuple",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
   },
   {
     inputs: [
@@ -952,64 +1073,19 @@ var eth_c_abi = [
       {
         components: [
           {
-            internalType: "enum PointMarket.OfferType",
-            name: "offerType",
-            type: "uint8",
-          },
-          {
-            internalType: "bytes32",
-            name: "tokenId",
-            type: "bytes32",
-          },
-          {
-            internalType: "address",
-            name: "exchangeToken",
-            type: "address",
-          },
-          {
             internalType: "uint256",
-            name: "amount",
+            name: "orderId",
             type: "uint256",
           },
           {
-            internalType: "uint256",
+            internalType: "uint128",
             name: "value",
-            type: "uint256",
-          },
-          {
-            internalType: "uint256",
-            name: "collateral",
-            type: "uint256",
-          },
-          {
-            internalType: "uint256",
-            name: "filledAmount",
-            type: "uint256",
-          },
-          {
-            internalType: "enum PointMarket.OfferStatus",
-            name: "status",
-            type: "uint8",
-          },
-          {
-            internalType: "address",
-            name: "offeredBy",
-            type: "address",
+            type: "uint128",
           },
           {
             internalType: "bool",
-            name: "fullMatch",
+            name: "isBuy",
             type: "bool",
-          },
-          {
-            internalType: "uint256",
-            name: "originalOrderId",
-            type: "uint256",
-          },
-          {
-            internalType: "uint8",
-            name: "reofferStatus",
-            type: "uint8",
           },
         ],
         internalType: "struct PointMarket.Offer",
@@ -1027,6 +1103,11 @@ var eth_c_abi = [
         name: "orderId",
         type: "uint256",
       },
+      {
+        internalType: "bool",
+        name: "isBuy",
+        type: "bool",
+      },
     ],
     name: "getOrder",
     outputs: [
@@ -1034,28 +1115,18 @@ var eth_c_abi = [
         components: [
           {
             internalType: "uint256",
-            name: "offerId",
+            name: "commonId",
             type: "uint256",
           },
           {
-            internalType: "uint256",
+            internalType: "address",
+            name: "owner",
+            type: "address",
+          },
+          {
+            internalType: "uint64",
             name: "amount",
-            type: "uint256",
-          },
-          {
-            internalType: "uint256",
-            name: "value",
-            type: "uint256",
-          },
-          {
-            internalType: "address",
-            name: "seller",
-            type: "address",
-          },
-          {
-            internalType: "address",
-            name: "buyer",
-            type: "address",
+            type: "uint64",
           },
           {
             internalType: "enum PointMarket.OrderStatus",
@@ -1074,139 +1145,39 @@ var eth_c_abi = [
   {
     inputs: [
       {
-        internalType: "bytes32",
-        name: "tokenId",
-        type: "bytes32",
+        internalType: "uint256",
+        name: "offerId",
+        type: "uint256",
       },
     ],
-    name: "getToken",
+    name: "getOrderByOfferId",
     outputs: [
       {
         components: [
           {
+            internalType: "uint256",
+            name: "commonId",
+            type: "uint256",
+          },
+          {
             internalType: "address",
-            name: "tokenAddr",
+            name: "owner",
             type: "address",
           },
           {
-            internalType: "uint48",
-            name: "settleTime",
-            type: "uint48",
+            internalType: "uint64",
+            name: "amount",
+            type: "uint64",
           },
           {
-            internalType: "uint48",
-            name: "settleDuration",
-            type: "uint48",
-          },
-          {
-            internalType: "uint152",
-            name: "settleRate",
-            type: "uint152",
-          },
-          {
-            internalType: "enum PointMarket.TokenStatus",
+            internalType: "enum PointMarket.OrderStatus",
             name: "status",
             type: "uint8",
           },
         ],
-        internalType: "struct PointMarket.Token",
+        internalType: "struct PointMarket.Order",
         name: "",
         type: "tuple",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        internalType: "uint256",
-        name: "offerId",
-        type: "uint256",
-      },
-    ],
-    name: "offerAmount",
-    outputs: [
-      {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        internalType: "uint256",
-        name: "offerId",
-        type: "uint256",
-      },
-    ],
-    name: "offerOfferedBy",
-    outputs: [
-      {
-        internalType: "address",
-        name: "",
-        type: "address",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        internalType: "uint256",
-        name: "offerId",
-        type: "uint256",
-      },
-    ],
-    name: "offerOriginalOrderId",
-    outputs: [
-      {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        internalType: "uint256",
-        name: "offerId",
-        type: "uint256",
-      },
-    ],
-    name: "offerStatus",
-    outputs: [
-      {
-        internalType: "enum PointMarket.OfferStatus",
-        name: "",
-        type: "uint8",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        internalType: "uint256",
-        name: "offerId",
-        type: "uint256",
-      },
-    ],
-    name: "offertype",
-    outputs: [
-      {
-        internalType: "enum PointMarket.OfferType",
-        name: "",
-        type: "uint8",
       },
     ],
     stateMutability: "view",
@@ -1220,63 +1191,6 @@ var eth_c_abi = [
         internalType: "uint48",
         name: "",
         type: "uint48",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        internalType: "uint256",
-        name: "orderId",
-        type: "uint256",
-      },
-    ],
-    name: "orderBuyer",
-    outputs: [
-      {
-        internalType: "address",
-        name: "",
-        type: "address",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        internalType: "uint256",
-        name: "orderId",
-        type: "uint256",
-      },
-    ],
-    name: "orderSeller",
-    outputs: [
-      {
-        internalType: "address",
-        name: "",
-        type: "address",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        internalType: "uint256",
-        name: "orderId",
-        type: "uint256",
-      },
-    ],
-    name: "orderStatus",
-    outputs: [
-      {
-        internalType: "enum PointMarket.OrderStatus",
-        name: "",
-        type: "uint8",
       },
     ],
     stateMutability: "view",
@@ -1741,7 +1655,11 @@ await eth_contract.events.TokenForceCancelSettlePhase().unsubscribe();
 // await eth_contract.events.Settle2Steps().unsubscribe();
 await eth_contract.events.UpdateTokenSettleDuration().unsubscribe();
 
-// arbitrum network
+// arbitrum sepolia network
+var web3 = new Web3(
+  "wss://arbitrum-sepolia.infura.io/ws/v3/2a34b908696f4275b84ae15338cc6b8a"
+);
+
 var arb_c_addr = "0x48EfDb7b1995432fb733FadE4Aa4b7CB03e6cF03";
 var arb_c_abi = [
   {
