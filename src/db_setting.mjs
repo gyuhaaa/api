@@ -37,9 +37,12 @@ import { connection } from "../db_connection.js";
 // var query = "DROP TABLE `user`";
 // var query = "DROP TABLE `email_log`";
 
-// var query = "DROP TABLE `token`, `offer`, `order_common`, `order_buy`, `order_sell`, `index`, `config`, `user`, `email_log`";
+// var query = "DROP TABLE `network`, `token`, `exchange_token`, `offer`, `order_common`, `order_buy`, `order_sell`, `index`, `config`, `user`, `email_log`";
 
-// 테이블 생성
+// ####################################################################################
+// ######## 테이블 생성 ##################################################################
+// ####################################################################################
+
 // 네트워크 정보 테이블
 var query =
   "CREATE TABLE network (" +
@@ -72,8 +75,8 @@ var query =
   "token_id INT, " +
   "chain_id INT, " +
   "token_name VARCHAR(30) NOT NULL, " +
-  "token_symbol VARCHAR(10) NOT NULL, " +
-  "token_addr VARCHAR(42) NOT NULL, " +
+  "token_symbol VARCHAR(10), " +
+  "token_addr VARCHAR(42), " +
   "logo_url VARCHAR(100), " +
   "telegram VARCHAR(100), " +
   "X VARCHAR(100), " +
@@ -81,7 +84,7 @@ var query =
   "homepage VARCHAR(100), " +
   "settle_time DATETIME, " +
   "settle_duration INT, " +
-  "settle_rate DECIMAL(65, 16), " +
+  "settle_rate DECIMAL(65, 0), " +
   "status INT NOT NULL, " +
   "reg_date DATETIME DEFAULT CURRENT_TIMESTAMP, " +
   "mod_date DATETIME, " +
@@ -98,12 +101,6 @@ connection.query(query, (err, results, fields) => {
 
   console.log("쿼리 결과:", results);
 });
-
-var query =
-  "INSERT INTO token (token_name, token_addr, status) VALUES ('GRASS', '0xd66d861fb4df099652c63cf472e6b7de95725bae', 1)";
-var query = "SELECT * from token";
-var query = "UPDATE token SET settle_time = null WHERE token_id = 1";
-var query = "SELECT * from token";
 
 // 결제 토큰 정보 테이블
 var query =
@@ -172,9 +169,9 @@ var query =
   "reg_date DATETIME DEFAULT CURRENT_TIMESTAMP, " +
   "mod_date DATETIME, " +
   "PRIMARY KEY (order_id, chain_id), " +
-  "FOREIGN KEY (common_id) REFERENCES order_common(common_id) " +
-  "ON UPDATE CASCADE " +
-  "ON DELETE CASCADE, " +
+  // "FOREIGN KEY (common_id) REFERENCES order_common(common_id) " +
+  // "ON UPDATE CASCADE " +
+  // "ON DELETE CASCADE, " +
   "FOREIGN KEY (chain_id) REFERENCES network(chain_id) " +
   "ON UPDATE CASCADE " +
   ");";
@@ -200,9 +197,9 @@ var query =
   "reg_date DATETIME DEFAULT CURRENT_TIMESTAMP, " +
   "mod_date DATETIME, " +
   "PRIMARY KEY (order_id, chain_id), " +
-  "FOREIGN KEY (common_id) REFERENCES order_common(common_id) " +
-  "ON UPDATE CASCADE " +
-  "ON DELETE CASCADE, " +
+  // "FOREIGN KEY (common_id) REFERENCES order_common(common_id) " +
+  // "ON UPDATE CASCADE " +
+  // "ON DELETE CASCADE, " +
   "FOREIGN KEY (chain_id) REFERENCES network(chain_id) " +
   "ON UPDATE CASCADE " +
   ");";
@@ -224,17 +221,41 @@ var query =
   "order_id INT, " +
   "value DECIMAL(39,0) NOT NULL, " +
   "is_buy BOOLEAN NOT NULL, " +
+  "status INT NOT NULL, " +
   "reg_date DATETIME DEFAULT CURRENT_TIMESTAMP, " +
   "mod_date DATETIME, " +
   "PRIMARY KEY (offer_id, chain_id), " +
-  "FOREIGN KEY (order_id) REFERENCES order_buy(order_id) " +
-  "ON UPDATE CASCADE " +
-  "ON DELETE CASCADE, " +
-  "FOREIGN KEY (order_id) REFERENCES order_sell(order_id) " +
-  "ON UPDATE CASCADE " +
-  "ON DELETE CASCADE, " +
+  // "FOREIGN KEY (order_id) REFERENCES order_buy(order_id) " +
+  // "ON UPDATE CASCADE " +
+  // "ON DELETE CASCADE, " +
+  // "FOREIGN KEY (order_id) REFERENCES order_sell(order_id) " +
+  // "ON UPDATE CASCADE " +
+  // "ON DELETE CASCADE, " +
   "FOREIGN KEY (chain_id) REFERENCES network(chain_id) " +
   "ON UPDATE CASCADE " +
+  ");";
+
+connection.query(query, (err, results, fields) => {
+  if (err) {
+    console.error("쿼리 실행에 실패했습니다:", err);
+    return;
+  }
+
+  console.log("쿼리 결과:", results);
+});
+
+// history 테이블
+var query =
+  "CREATE TABLE history (" +
+  "id INT AUTO_INCREMENT PRIMARY KEY, " +
+  "event_cd INT NOT NULL, " +
+  "order_id INT NOT NULL, " + // INDEX
+  "offer_id INT, " + // INDEX
+  "seller_addr VARCHAR(42), " +
+  "buyer_addr VARCHAR(42), " +
+  "deposit DECIMAL(39,0) NOT NULL, " +
+  "tx_hash VARCHAR(42) UNIQUE NOT NULL, " +
+  "reg_date DATETIME DEFAULT CURRENT_TIMESTAMP " +
   ");";
 
 connection.query(query, (err, results, fields) => {
@@ -278,7 +299,18 @@ var query =
   "('order', 'status', 2, 'settle_filled'), " +
   "('order', 'status', 3, 'settle_canceled'), " +
   "('order', 'status', 4, 'canceled'), " +
-  "('order', 'status', 5, 'insale') ";
+  "('order', 'status', 5, 'insale'), " +
+  "('offer', 'status', 0, 'none'), " +
+  "('offer', 'status', 1, 'open'), " +
+  "('offer', 'status', 2, 'filled'), " +
+  "('offer', 'status', 3, 'canceld'), " +
+  "('history', 'event_cd', 1, 'NewOffer'), " +
+  "('history', 'event_cd', 2, 'FillOffer'), " +
+  "('history', 'event_cd', 3, 'FillResaleOffer'), " +
+  "('history', 'event_cd', 4, 'CancelOffer'), " +
+  "('history', 'event_cd', 5, 'CancelOrder'), " +
+  "('history', 'event_cd', 6, 'SettleFilled'), " +
+  "('history', 'event_cd', 7, 'SettleCanceld') ";
 
 connection.query(query, (err, results, fields) => {
   if (err) {
@@ -296,13 +328,13 @@ var query =
   "CREATE TABLE `config` (" +
   "id INT AUTO_INCREMENT PRIMARY KEY, " +
   "old_fee_wallet VARCHAR(42) NOT NULL, " +
-  "old_fee_settle DECIMAL(6,3) NOT NULL, " +
-  "old_fee_refund DECIMAL(6,3) NOT NULL, " +
-  "old_pledge_rate DECIMAL(13,10) NOT NULL, " +
+  "old_fee_settle INT NOT NULL, " +
+  "old_fee_refund INT NOT NULL, " +
+  "old_pledge_rate INT NOT NULL, " +
   "new_fee_wallet VARCHAR(42) NOT NULL, " +
-  "new_fee_settle DECIMAL(6,3) NOT NULL, " +
-  "new_fee_refund DECIMAL(6,3) NOT NULL, " +
-  "new_pledge_rate DECIMAL(13,10) NOT NULL, " +
+  "new_fee_settle INT NOT NULL, " +
+  "new_fee_refund INT NOT NULL, " +
+  "new_pledge_rate INT NOT NULL, " +
   "reg_date DATETIME DEFAULT CURRENT_TIMESTAMP, " +
   "mod_date DATETIME " +
   ")";
@@ -355,6 +387,33 @@ connection.query(query, (err, results, fields) => {
 
   console.log("쿼리 결과:", results);
 });
+
+// ####################################################################################
+// ######## 프로시저 생성 ################################################################
+// ####################################################################################
+
+// my offer 페이지
+var query =
+  "DELIMITER // " +
+  "CREATE PROCEDURE getMyOffer(IN offerId INT, OUT userEmail VARCHAR(255)) " +
+  "BEGIN " +
+  "    SELECT email INTO userEmail " +
+  "    FROM order_common T1 " +
+  "    INNER JOIN order_common T1 " +
+  "    WHERE T3.offer_id = offerId; " +
+  "END // " +
+  "DELIMITER ; ";
+
+// history
+"DELIMITER // " +
+  "CREATE PROCEDURE getMyOffer(IN offerId INT, OUT userEmail VARCHAR(255)) " +
+  "BEGIN " +
+  "    SELECT email INTO userEmail " +
+  "    FROM history " +
+  "    WHERE offer_id = offerId " +
+  "     AND order_id = (SELECT order_id FROM offer WHERE offer_id = offerId); " +
+  "END // " +
+  "DELIMITER ; ";
 
 // db 연결 종료
 connection.end();
