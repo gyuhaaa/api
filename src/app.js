@@ -12,15 +12,14 @@ const app = express();
 app.use(express.json());
 
 // POST /newtoken 경로에 대한 처리
-app.post("/newtoken", (req, res) => {
-  const { tokenId, chainId, settleDuration } = req.body;
+app.post("/getTodayCount", (req, res) => {
+  const { userId } = req.body;
 
   const query = `
-    INSERT INTO token (token_id, chain_id, settle_duration)
-    VALUES (?, ?, ?);
+    CALL get_today_count (?);
   `;
 
-  const values = [tokenId, chainId, settleDuration];
+  const values = [userId];
 
   connection.query(query, values, (err, results) => {
     if (err) {
