@@ -131,9 +131,17 @@ connection.query(query, (err, results, fields) => {
 // });
 
 // 3. 메인 페이지 - 바텀 시트 : 회원 최근 7일 spin, slide 포인트
-var query = `
-  DROP PROCEDURE IF EXISTS get_week_point;
+var query = "DROP PROCEDURE IF EXISTS get_week_point;";
+connection.query(query, (err, results, fields) => {
+  if (err) {
+    console.error("쿼리 실행에 실패했습니다:", err);
+    return;
+  }
 
+  console.log("쿼리 결과:", results);
+});
+
+var query = `
   CREATE PROCEDURE get_week_point (
     IN input_user_id CHAR(8)
   )
@@ -176,10 +184,18 @@ connection.query(query, (err, results, fields) => {
 });
 
 // 4. 랭킹 페이지 : 전체 회원 대상 spin_count, slide_count 내림차순 정렬
-var query = `
-  DROP PROCEDURE IF EXISTS get_rank;
+var query = "DROP PROCEDURE IF EXISTS get_rank;";
+connection.query(query, (err, results, fields) => {
+  if (err) {
+    console.error("쿼리 실행에 실패했습니다:", err);
+    return;
+  }
 
-  CREATE PROCEDURE get_rank (IN type TINYINT)
+  console.log("쿼리 결과:", results);
+});
+
+var query = `
+ CREATE PROCEDURE get_rank (IN type TINYINT)
   BEGIN
     IF type = 1 THEN
       SELECT profile_image, nickname, total_spin_point
@@ -204,9 +220,17 @@ connection.query(query, (err, results, fields) => {
 
 // 수정(UPDATE) ########################################################################
 // 1. 메인 페이지 - 모달 : 회원 닉네임, 프로필 이미지, 추천인 코드
-var query = `
-  DROP PROCEDURE IF EXISTS update_user_data;
+var query = "DROP PROCEDURE IF EXISTS update_user_data;";
+connection.query(query, (err, results, fields) => {
+  if (err) {
+    console.error("쿼리 실행에 실패했습니다:", err);
+    return;
+  }
 
+  console.log("쿼리 결과:", results);
+});
+
+var query = `
   CREATE PROCEDURE update_user_data (
     IN input_user_id CHAR(8),
     IN input_profile_image VARCHAR(100),
@@ -232,9 +256,17 @@ connection.query(query, (err, results, fields) => {
 });
 
 // 2. spin 카운트
-var query = `
-  DROP PROCEDURE IF EXISTS update_spin_data;
+var query = "DROP PROCEDURE IF EXISTS update_spin_data;";
+connection.query(query, (err, results, fields) => {
+  if (err) {
+    console.error("쿼리 실행에 실패했습니다:", err);
+    return;
+  }
 
+  console.log("쿼리 결과:", results);
+});
+
+var query = `
   CREATE PROCEDURE update_spin_data (
     IN input_user_id CHAR(8),
     IN input_spin_count INT
@@ -257,9 +289,17 @@ connection.query(query, (err, results, fields) => {
 });
 
 // 3. slide 카운트
-var query = `
-  DROP PROCEDURE IF EXISTS update_slide_data;
+var query = "DROP PROCEDURE IF EXISTS update_slide_data;";
+connection.query(query, (err, results, fields) => {
+  if (err) {
+    console.error("쿼리 실행에 실패했습니다:", err);
+    return;
+  }
 
+  console.log("쿼리 결과:", results);
+});
+
+var query = `
   CREATE PROCEDURE update_slide_data (
     IN input_user_id CHAR(8),
     IN input_slide_count INT
@@ -283,9 +323,17 @@ connection.query(query, (err, results, fields) => {
 
 // 입력(INSERT) ########################################################################
 // 1. user
-var query = `
-  DROP PROCEDURE IF EXISTS insert_user_data;
+var query = "DROP PROCEDURE IF EXISTS insert_user_data;";
+connection.query(query, (err, results, fields) => {
+  if (err) {
+    console.error("쿼리 실행에 실패했습니다:", err);
+    return;
+  }
 
+  console.log("쿼리 결과:", results);
+});
+
+var query = `
   CREATE PROCEDURE insert_user_data (
     IN input_user_id CHAR(8),
     IN input_wallet_address CHAR(42),
@@ -307,9 +355,17 @@ connection.query(query, (err, results, fields) => {
 });
 
 // 2. spin 카운트
-var query = `
-  DROP PROCEDURE IF EXISTS insert_spin_data;
+var query = "DROP PROCEDURE IF EXISTS insert_spin_data;";
+connection.query(query, (err, results, fields) => {
+  if (err) {
+    console.error("쿼리 실행에 실패했습니다:", err);
+    return;
+  }
 
+  console.log("쿼리 결과:", results);
+});
+
+var query = `
   CREATE PROCEDURE insert_spin_data (
     IN input_user_id CHAR(8),
     IN input_spin_count INT
@@ -330,9 +386,17 @@ connection.query(query, (err, results, fields) => {
 });
 
 // 3. slide 카운트
-var query = `
-  DROP PROCEDURE IF EXISTS insert_slide_data;
+var query = "DROP PROCEDURE IF EXISTS insert_slide_data;";
+connection.query(query, (err, results, fields) => {
+  if (err) {
+    console.error("쿼리 실행에 실패했습니다:", err);
+    return;
+  }
 
+  console.log("쿼리 결과:", results);
+});
+
+var query = `
   CREATE PROCEDURE insert_slide_data (
     IN input_user_id CHAR(8),
     IN input_slide_count INT
@@ -359,7 +423,7 @@ connection.query(query, (err, results, fields) => {
 var query = `SET GLOBAL event_scheduler = ON;`;
 // 매일 0시
 // daily_spin, daily_slide 데이터를 user 테이블에 업데이트
-// daily_spin, daily_slide 테이블에 관리자 데이터 insert
+// daily_spin, daily_slide 테이블에 관리자 데이터 insert (특정 일자에 아무 데이터도 없는 것을 방지하기 위해)
 var query = `
   CREATE EVENT IF NOT EXISTS update_total_count
   ON SCHEDULE EVERY 1 DAY
