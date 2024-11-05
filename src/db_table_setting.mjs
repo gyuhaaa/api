@@ -29,6 +29,24 @@ import { connection } from "../db_connection.js";
 // ######## 테이블 생성 ##################################################################
 // ####################################################################################
 
+// var query = `
+//   CREATE TABLE user (
+//     user_id CHAR(8) PRIMARY KEY,
+//     wallet_address CHAR(42) NOT NULL UNIQUE,
+//     profile_image VARCHAR(100),
+//     nickname VARCHAR(10) NOT NULL,
+//     referral_user_id CHAR(8),
+//     total_slide_count INT DEFAULT 0,
+//     total_slide_point INT DEFAULT 0,
+//     total_spin_count INT DEFAULT 0,
+//     total_spin_point INT DEFAULT 0,
+//     nft_count INT DEFAULT 0,
+//     reg_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+//     mod_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+//     FOREIGN KEY (referral_user_id) REFERENCES user(user_id) ON DELETE SET NULL
+//   );
+// `;
+
 // 유저 정보 테이블
 var query = `
   CREATE TABLE user (
@@ -37,10 +55,8 @@ var query = `
     profile_image VARCHAR(100),
     nickname VARCHAR(10) NOT NULL,
     referral_user_id CHAR(8),
-    total_slide_count INT DEFAULT 0,
-    total_slide_point INT DEFAULT 0,
-    total_spin_count INT DEFAULT 0,
-    total_spin_point INT DEFAULT 0,
+    total_count INT DEFAULT 0,
+    total_point INT DEFAULT 0,
     nft_count INT DEFAULT 0,
     reg_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     mod_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -93,13 +109,27 @@ connection.query(query, (err, results, fields) => {
 });
 
 // 자이로볼 카운트 정보 테이블
+// var query = `
+//   CREATE TABLE daily_spin (
+//     id INT AUTO_INCREMENT PRIMARY KEY,
+//     user_id CHAR(8) NOT NULL,
+//     date DATE NOT NULL,
+//     spin_count INT DEFAULT 0,
+//     spin_point INT DEFAULT 0,
+//     FOREIGN KEY (user_id) REFERENCES user(user_id) ON DELETE CASCADE,
+//     UNIQUE (user_id, date)
+//   );
+// `;
+
 var query = `
-  CREATE TABLE daily_spin (
+  CREATE TABLE daily_count (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id CHAR(8) NOT NULL,
     date DATE NOT NULL,
     spin_count INT DEFAULT 0,
-    spin_point INT DEFAULT 0,
+    slide_count INT DEFAULT 0,
+    nft_point INT DEFAULT 0,
+    referral_point INT DEFAULT 0,
     FOREIGN KEY (user_id) REFERENCES user(user_id) ON DELETE CASCADE,
     UNIQUE (user_id, date)
   );
@@ -122,17 +152,17 @@ connection.query(query, (err, results, fields) => {
 });
 
 // 슬라이드 카운트 정보 테이블
-var query = `
-  CREATE TABLE daily_slide (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id CHAR(8) NOT NULL,
-    date DATE NOT NULL,
-    slide_count INT DEFAULT 0,
-    slide_point INT DEFAULT 0,
-    FOREIGN KEY (user_id) REFERENCES user(user_id) ON DELETE CASCADE,
-    UNIQUE (user_id, date)
-  );
-`;
+// var query = `
+//   CREATE TABLE daily_slide (
+//     id INT AUTO_INCREMENT PRIMARY KEY,
+//     user_id CHAR(8) NOT NULL,
+//     date DATE NOT NULL,
+//     slide_count INT DEFAULT 0,
+//     slide_point INT DEFAULT 0,
+//     FOREIGN KEY (user_id) REFERENCES user(user_id) ON DELETE CASCADE,
+//     UNIQUE (user_id, date)
+//   );
+// `;
 
 // 테스트 데이터 추가
 // var query = `
@@ -141,6 +171,28 @@ var query = `
 // `;
 // var query = `SELECT * FROM daily_slide`;
 
+// connection.query(query, (err, results, fields) => {
+//   if (err) {
+//     console.error("쿼리 실행에 실패했습니다:", err);
+//     return;
+//   }
+
+//   console.log("쿼리 결과:", results);
+// });
+
+// db 연결 종료
+
+var query = `
+  CREATE TABLE auth_tokens (
+    id INT AUTO_INCREMENT PRIMARY KEY,    
+    user_id CHAR(8) NOT NULL,
+    token VARCHAR(64) NOT NULL, 
+    created_at DATE NOT NULL,
+    expires_at DATE NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES user(user_id) ON DELETE CASCADE,
+    UNIQUE (token)
+  );
+`;
 connection.query(query, (err, results, fields) => {
   if (err) {
     console.error("쿼리 실행에 실패했습니다:", err);
@@ -150,5 +202,4 @@ connection.query(query, (err, results, fields) => {
   console.log("쿼리 결과:", results);
 });
 
-// db 연결 종료
 connection.end();
