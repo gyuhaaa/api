@@ -70,7 +70,6 @@ app.post("/getTodayCount", (req, res) => {
   });
 });
 
-<<<<<<< HEAD
 // POST /getTotalCount 경로에 대한 처리
 app.post("/getTotalCount", (req, res) => {
   const { userId } = req.body;
@@ -407,6 +406,4 @@ app.post("/addCount", verifyToken, (req, res) => {
   });
 });
 
-=======
->>>>>>> 2a5044e1b18b31f1d9b7568a8e752eb2987810e1
 export default app;
