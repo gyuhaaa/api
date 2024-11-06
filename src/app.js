@@ -1,14 +1,41 @@
 import express from "express";
 import { connection } from "../db_connection.js";
-import Web3 from "web3";
 import crypto from "crypto";
 import multer from "multer";
-import { encodeEthereumAddress } from "./lib/index.js";
+import path from "path";
+import fs from "fs";
 
-const upload = multer({ dest: "uploads/" });
+import { encodeEthereumAddress, validateSignedMessage } from "./lib/index.js";
 
 const app = express();
-const web3 = new Web3();
+
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadDir = path.join(__dirname, "Images");
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir); // 폴더가 없으면 생성
+    }
+    cb(null, uploadDir);
+  },
+  filename: function (req, file, cb) {
+    // 현재 시간과 랜덤 숫자를 조합하여 고유한 파일 이름 생성
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    const fileName = `${uniqueSuffix}${path.extname(file.originalname)}`;
+    cb(null, fileName);
+  },
+});
+
+const upload = multer({ storage: storage });
+
+function verifySignedTimestamp(timestamp, signature, address) {
+  if (Math.abs(Date.now() - timestamp) > 60 * 1000) {
+    return false;
+  }
+
+  const message = timestamp.toString(); // timestamp를 문자열로 변환하여 서명 검증에 사용
+
+  return validateSignedMessage(message, signature, address);
+}
 
 function verifyToken(req, res, next) {
   const token = req.headers.authorization;
@@ -248,79 +275,61 @@ app.get("/getTodayMaxCount", (req, res) => {
 app.post("/getAuthToken", (req, res) => {
   const { timestamp, signature, address } = req.body;
 
-  if (Math.abs(Date.now() - timestamp) > 60 * 1000) {
-    return res.status(400).json({
-      result: Math.abs(Date.now() - timestamp),
-      message:
-        "The timestamp differs from the server time by more than 1 minutes.",
-    });
-  }
+  if (verifySignedTimestamp(timestamp, signature, address)) {
+    const token = crypto.randomBytes(32).toString("hex");
+    const userId = encodeEthereumAddress(address);
 
-  const message = timestamp.toString(); // timestamp를 문자열로 변환하여 서명 검증에 사용
-
-  try {
-    // 서명을 통해 지갑 주소 복구
-    const recoveredAddress = web3.eth.accounts.recover(message, signature);
-
-    // 복구된 주소가 요청된 주소와 일치하는지 확인
-    if (recoveredAddress.toLowerCase() === address.toLowerCase()) {
-      const token = crypto.randomBytes(32).toString("hex");
-      const userId = encodeEthereumAddress(address);
-
-      // auth_tokens 테이블에서 userId와 일치하는 행이 존재한다면 삭제하고 새로 token, userId, create_at = 현재 시간, expired_at = 현재 시간 + 1달로 새로운 행 생성
-      const query = `
-        CALL set_token (?, ?);
+    // auth_tokens 테이블에서 userId와 일치하는 행이 존재한다면 삭제하고 새로 token, userId, create_at = 현재 시간, expired_at = 현재 시간 + 7일로 새로운 행 생성
+    const query = `
+        CALL upsert_token (?, ?);
       `;
 
-      const values = [token, userId];
+    const values = [userId, token];
 
-      connection.query(query, values, (err, results) => {
-        if (err) {
-          res.json({
-            result: 0,
-            message: err.message,
-            data: {},
-          });
-          return;
-        }
-
+    connection.query(query, values, (err, results) => {
+      if (err) {
         res.json({
-          result: 1,
-          message: "success",
-          data: {
-            result: [
-              [
-                {
-                  token,
-                },
-              ],
-            ],
-          },
+          result: 0,
+          message: err.message,
+          data: {},
         });
         return;
+      }
+
+      res.json({
+        result: 1,
+        message: "success",
+        data: {
+          result: [
+            [
+              {
+                token,
+              },
+            ],
+          ],
+        },
       });
-    } else {
-      res.status(400).json({
-        error: "Invalid signature",
-        message: "The signature does not match the provided address.",
-      });
-    }
-  } catch (error) {
-    console.error("Error verifying signature:", error);
-    res.status(500).json({
-      error: "Signature verification failed",
-      message: "An error occurred while verifying the signature.",
+      return;
+    });
+  } else {
+    res.status(400).json({
+      error: "Invalid signature",
+      message: "The signature does not match the provided address.",
     });
   }
 });
 
 // POST /setUser 경로에 대한 처리 (프로필 사진 업로드 O)
-app.post("/setUser", verifyToken, upload.single("file"), (req, res) => {
-  // file 저장 로직 추가
-  var profile = null;
-
+app.post("/setUser", verifyToken, upload.single("image"), (req, res) => {
   const token = req.headers.authorization;
   const { nickname, referral_user_id } = req.body;
+
+  // file 저장 로직 추가
+  if (!req.file) {
+    return res.status(400).json({ error: "Image file is required" });
+  }
+
+  const profile = req.file.filename;
 
   // auth_tokens 테이블에서 token을 조회하고 일치하는 행의 user_id를 참조하여 user 테이블에 profile, nickname, referral_user_id를 수정
   // 이 때, 각 값이 null인 경우에는 변경 X,
@@ -352,13 +361,13 @@ app.post("/setUser", verifyToken, upload.single("file"), (req, res) => {
 // POST /setUser 경로에 대한 처리 (프로필 사진 업로드 X)
 app.post("/setUser", verifyToken, upload.none(), (req, res) => {
   const token = req.headers.authorization;
-  const { nickname, referral_user_id } = req.body;
+  const { profile, nickname, referral_user_id } = req.body;
 
   const query = `
     CALL set_user (?,?,?,?);
   `;
 
-  const values = [token, null, nickname, referral_user_id];
+  const values = [token, profile, nickname, referral_user_id];
 
   connection.query(query, values, (err, results) => {
     if (err) {
@@ -407,6 +416,51 @@ app.post("/addCount", verifyToken, (req, res) => {
       message: "success",
       data: { results },
     });
+  });
+});
+
+// POST /signUp 경로에 대한 처리
+app.post("/signUp", (req, res) => {
+  const { walletAddress, nickname } = req.body;
+
+  const userId = encodeEthereumAddress(walletAddress);
+
+  const query = `CALL insert_user (?,?,?)`;
+
+  const values = [userId, walletAddress, nickname];
+
+  connection.query(query, values, (err, results) => {
+    if (err) {
+      res.json({
+        result: 0,
+        message: err.message,
+        data: {},
+      });
+      return;
+    }
+
+    res.json({
+      result: 1,
+      message: "success",
+      data: { results },
+    });
+  });
+});
+
+// GET /getTimeStamp 경로에 대한 처리
+app.get("/getTimeStamp", (req, res) => {
+  return res.json({
+    result: 1,
+    message: "success",
+    data: {
+      results: [
+        [
+          {
+            timestamp: Date.now(),
+          },
+        ],
+      ],
+    },
   });
 });
 

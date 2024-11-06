@@ -56,7 +56,7 @@ var query = `
     user_id CHAR(8) PRIMARY KEY,
     wallet_address CHAR(42) NOT NULL UNIQUE,
     profile_image VARCHAR(100),
-    nickname VARCHAR(10) NOT NULL,
+    nickname VARCHAR(20) NOT NULL,
     referral_user_id CHAR(8),
     total_count INT DEFAULT 0,
     total_point INT DEFAULT 0,

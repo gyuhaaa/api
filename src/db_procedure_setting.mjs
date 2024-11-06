@@ -371,7 +371,7 @@ var query = `
   CREATE PROCEDURE set_user (
     IN input_user_id CHAR(8),
     IN input_profile_image VARCHAR(100),
-    IN input_nickname VARCHAR(10),
+    IN input_nickname VARCHAR(20),
     IN input_referral_user_id CHAR(8)
   )
   BEGIN
@@ -404,9 +404,9 @@ connection.query(query, (err, results, fields) => {
 });
 
 var query = `
-  CREATE PROCEDURE set_token (
-    IN input_token CHAR(64),
-    IN input_user_id CHAR(8)
+  CREATE PROCEDURE set_token (  
+    IN input_user_id CHAR(8),
+    IN input_token CHAR(64)
   )
   BEGIN
     UPDATE auth_tokens SET token = input_token, created_at = CURDATE(), expired_at = CURDATE() + INTERVAL 7 DAY 
@@ -439,7 +439,7 @@ var query = `
   CREATE PROCEDURE insert_user (
     IN input_user_id CHAR(8),
     IN input_wallet_address CHAR(42),
-    IN input_nickname VARCHAR(10)
+    IN input_nickname VARCHAR(20)
   )
   BEGIN
     INSERT INTO user (user_id, wallet_address, nickname) VALUES
@@ -510,6 +510,49 @@ var query = `
     ON DUPLICATE KEY UPDATE 
         spin_count = input_spin_count,
         slide_count = input_slide_count;
+  END;
+`;
+
+connection.query(query, (err, results, fields) => {
+  if (err) {
+    console.error("쿼리 실행에 실패했습니다:", err);
+    return;
+  }
+
+  console.log("쿼리 결과:", results);
+});
+
+// 4. auth_tokens 추가 및 업데이트
+var query = "DROP PROCEDURE IF EXISTS upsert_token;";
+connection.query(query, (err, results, fields) => {
+  if (err) {
+    console.error("쿼리 실행에 실패했습니다:", err);
+    return;
+  }
+
+  console.log("쿼리 결과:", results);
+});
+
+var query = `
+  CREATE PROCEDURE upsert_token (
+    IN input_user_id CHAR(8),
+    IN input_token CHAR(64)
+  )
+  BEGIN
+      DECLARE user_exists INT DEFAULT 0;
+
+      -- user_id가 존재하는지 확인
+      SELECT COUNT(*) INTO user_exists
+      FROM auth_tokens
+      WHERE user_id = input_user_id;
+
+      -- user_id가 존재하지 않으면 insert_token 호출
+      IF user_exists = 0 THEN
+          CALL insert_token(input_user_id, input_token);
+      -- 존재하면 set_token 호출
+      ELSE
+          CALL set_token(input_token, input_user_id);
+      END IF;
   END;
 `;
 
