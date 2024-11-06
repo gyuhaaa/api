@@ -26,6 +26,8 @@ import { connection } from "../db_connection.js";
 
 // 조회(SELECT) ########################################################################
 // 1. 메인 페이지 - 사용자 모달 : 사용자 정보
+
+// input: wallet_address => user_id로 수정
 var query = "DROP PROCEDURE IF EXISTS get_user;";
 connection.query(query, (err, results, fields) => {
   if (err) {
@@ -38,12 +40,12 @@ connection.query(query, (err, results, fields) => {
 
 var query = `
   CREATE PROCEDURE get_user (
-    IN input_wallet_address CHAR(42)
+    IN input_user_id CHAR(8)
   )
   BEGIN
       SELECT user_id, wallet_address, profile_image, nickname, referral_user_id
       FROM user
-      WHERE wallet_address = input_wallet_address
+      WHERE user_id = input_user_id
   END;
 `;
 
@@ -155,7 +157,7 @@ var query = `
     IN input_user_id CHAR(8)
   )
   BEGIN
-    SELECT total_point
+    SELECT total_count, total_point
     FROM user
     WHERE user_id = input_user_id;
   END;

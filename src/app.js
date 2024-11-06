@@ -77,7 +77,7 @@ app.post("/getTotalCount", (req, res) => {
   // user 테이블에서 user_id가 일치하는 유저의 total_count, total_point값 반환.
   // ** get_total_point
   const query = `
-    CALL get_total_count (?);
+    CALL get_total_point (?);
   `;
 
   const values = [userId];
@@ -107,7 +107,7 @@ app.post("/getDailyCount", (req, res) => {
   // daily_count테이블에서 userId가 일치하는 거 최대 7개까지 반환.
   // ** get_week_point
   const query = `
-    CALL get_daily_count (?);
+    CALL get_week_point (?);
   `;
 
   const values = [userId];
@@ -135,11 +135,12 @@ app.post("/getUser", (req, res) => {
   const { address } = req.body;
 
   // user 테이블에서 address가 일치하는 것 중에 user_id, wallet_address, nickname, profile, referral_user_id 반환
+  const userId = encodeEthereumAddress(address);
   const query = `
     CALL get_user (?);
   `;
 
-  const values = [address];
+  const values = [userId];
 
   connection.query(query, values, (err, results) => {
     if (err) {
@@ -161,7 +162,7 @@ app.post("/getUser", (req, res) => {
 
 // POST /getRank 경로에 대한 처리
 app.post("/getRank", (req, res) => {
-  const { address } = req.body;
+  const { userId } = req.body;
 
   // user 테이블에서 address가 일치하는 항목이 total_point를 내림차순으로 정렬했을 때 몇 번째 인덱스에 위치하는지 반환
   // ** user_id가 아니라 address를 사용하는 이유
@@ -169,7 +170,7 @@ app.post("/getRank", (req, res) => {
     CALL get_rank (?);
   `;
 
-  const values = [address];
+  const values = [userId];
 
   connection.query(query, values, (err, results) => {
     if (err) {
