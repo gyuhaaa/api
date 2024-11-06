@@ -22,8 +22,11 @@ import { connection } from "../db_connection.js";
 // var query = "DROP TABLE `config`";
 // var query = "DROP TABLE `daily_spin`";
 // var query = "DROP TABLE `daily_slide`";
+// var query = "DROP TABLE `daily_count`";
+// var query = "DROP TABLE `auth_tokens`";
 
 // var query = "DROP TABLE `user`, `daily_spin`, `daily_slide`, `config`";
+// var query = "DROP TABLE `user`, `daily_count`, `config`, `auth_tokens`";
 
 // ####################################################################################
 // ######## 테이블 생성 ##################################################################
@@ -180,13 +183,12 @@ connection.query(query, (err, results, fields) => {
 //   console.log("쿼리 결과:", results);
 // });
 
-// db 연결 종료
-
+// 사용자 인증 테이블
 var query = `
   CREATE TABLE auth_tokens (
     id INT AUTO_INCREMENT PRIMARY KEY,    
     user_id CHAR(8) NOT NULL,
-    token VARCHAR(64) NOT NULL, 
+    token CHAR(64) NOT NULL, 
     created_at DATE NOT NULL,
     expires_at DATE NOT NULL,
     FOREIGN KEY (user_id) REFERENCES user(user_id) ON DELETE CASCADE,
@@ -202,4 +204,5 @@ connection.query(query, (err, results, fields) => {
   console.log("쿼리 결과:", results);
 });
 
+// db 연결 종료
 connection.end();

@@ -25,7 +25,38 @@ import { connection } from "../db_connection.js";
 // ####################################################################################
 
 // 조회(SELECT) ########################################################################
-// 1. 메인 페이지 : 회원별 일일 카운트
+// 1. 메인 페이지 - 사용자 모달 : 사용자 정보
+var query = "DROP PROCEDURE IF EXISTS get_user;";
+connection.query(query, (err, results, fields) => {
+  if (err) {
+    console.error("쿼리 실행에 실패했습니다:", err);
+    return;
+  }
+
+  console.log("쿼리 결과:", results);
+});
+
+var query = `
+  CREATE PROCEDURE get_user (
+    IN input_wallet_address CHAR(42)
+  )
+  BEGIN
+      SELECT user_id, wallet_address, profile_image, nickname, referral_user_id
+      FROM user
+      WHERE wallet_address = input_wallet_address
+  END;
+`;
+
+connection.query(query, (err, results, fields) => {
+  if (err) {
+    console.error("쿼리 실행에 실패했습니다:", err);
+    return;
+  }
+
+  console.log("쿼리 결과:", results);
+});
+
+// 2. 메인 페이지 : 사용자 일일 카운트
 var query = "DROP PROCEDURE IF EXISTS get_today_count;";
 connection.query(query, (err, results, fields) => {
   if (err) {
@@ -45,14 +76,12 @@ var query = `
     SET today = CURDATE();
     
     SELECT 
-        COALESCE(sp.spin_count, 0) AS spin_count,
-        COALESCE(sl.slide_count, 0) AS slide_count
+        COALESCE(dc.spin_count, 0) AS spin_count,
+        COALESCE(dc.slide_count, 0) AS slide_count
     FROM 
         (SELECT input_user_id AS user_id) AS u
     LEFT JOIN 
-        daily_spin sp ON sp.user_id = u.user_id AND sp.date = today
-    LEFT JOIN 
-        daily_slide sl ON sl.user_id = u.user_id AND sl.date = today;
+        daily_count dc ON dc.user_id = u.user_id AND dc.date = today
   END;
 `;
 
@@ -82,7 +111,35 @@ connection.query(query, (err, results, fields) => {
 //   }
 // });
 
-// 2. 메인 페이지 - 바텀 시트 : 회원 총 spin, slide 포인트
+// 3. 메인 페이지 : 일일 최대 카운트
+var query = "DROP PROCEDURE IF EXISTS get_today_max_count;";
+connection.query(query, (err, results, fields) => {
+  if (err) {
+    console.error("쿼리 실행에 실패했습니다:", err);
+    return;
+  }
+
+  console.log("쿼리 결과:", results);
+});
+
+var query = `
+  CREATE PROCEDURE get_today_max_count ()
+  BEGIN
+    SELECT (SELECT spin_count FROM daily_count WHERE date = CURDATE() ORDER BY spin_count DESC LIMIT 1) AS spin_max_count, 
+      (SELECT slide_count FROM daily_count WHERE date = CURDATE() ORDER BY slide_count DESC LIMIT 1) AS slide_max_count
+  END;
+`;
+
+connection.query(query, (err, results, fields) => {
+  if (err) {
+    console.error("쿼리 실행에 실패했습니다:", err);
+    return;
+  }
+
+  console.log("쿼리 결과:", results);
+});
+
+// 4. 메인 페이지 - 바텀 시트 : 사용자 총 포인트
 var query = "DROP PROCEDURE IF EXISTS get_total_point;";
 connection.query(query, (err, results, fields) => {
   if (err) {
@@ -98,7 +155,7 @@ var query = `
     IN input_user_id CHAR(8)
   )
   BEGIN
-    SELECT total_spin_point, total_slide_point
+    SELECT total_point
     FROM user
     WHERE user_id = input_user_id;
   END;
@@ -130,7 +187,7 @@ connection.query(query, (err, results, fields) => {
 //   }
 // });
 
-// 3. 메인 페이지 - 바텀 시트 : 회원 최근 7일 spin, slide 포인트
+// 5. 메인 페이지 - 바텀 시트 : 사용자 최근 7일 total(spin + slide), nft, referral 포인트
 var query = "DROP PROCEDURE IF EXISTS get_week_point;";
 connection.query(query, (err, results, fields) => {
   if (err) {
@@ -146,29 +203,20 @@ var query = `
     IN input_user_id CHAR(8)
   )
   BEGIN
-    CREATE TEMPORARY TABLE IF NOT EXISTS week_date (
-        date DATE PRIMARY KEY
-    );
-
-    TRUNCATE TABLE week_date;
-    INSERT INTO week_date (date)
-    SELECT CURDATE() - INTERVAL seq DAY
-    FROM (SELECT 0 AS seq UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 
-          UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6) AS days
-    ORDER BY date DESC;
-
     SELECT 
         wd.date,
-        COALESCE(sp.spin_point, 0) AS spin_point,
-        COALESCE(sl.slide_point, 0) AS slide_point
-    FROM 
-        week_date wd
+        COALESCE(spin_count * (SELECT spin_point_per_count FROM config ORDER BY id DESC LIMIT 1;) + slide_count * (SELECT slide_point_per_count FROM config ORDER BY id DESC LIMIT 1;), 0) AS total_point,
+        COALESCE(nft_count, 0) AS nft_count,
+        COALESCE(referral_point, 0) AS referral_point
     LEFT JOIN 
-        daily_spin sp ON wd.date = sp.date AND sp.user_id = input_user_id
-    LEFT JOIN 
-        daily_slide sl ON wd.date = sl.date AND sl.user_id = input_user_id
+        daily_count
+    WHERE
+        user_id = input_user_id 
+        AND date >= CURDATE() - INTERVAL 6 DAY
+    GROUP BY
+        date
     ORDER BY 
-        wd.date;
+        date;
 
     DROP TEMPORARY TABLE IF EXISTS week_date;
   END;
@@ -183,7 +231,50 @@ connection.query(query, (err, results, fields) => {
   console.log("쿼리 결과:", results);
 });
 
-// 4. 랭킹 페이지 : 전체 회원 대상 spin_count, slide_count 내림차순 정렬
+// 6. 랭킹 페이지 : 전체 회원 대상 total_point 내림차순 10명 정렬
+// 몇 등까지 보여줄 건지? 사용자가 많아졌을 때 무한대로 보여줄 수는 없음.
+var query = "DROP PROCEDURE IF EXISTS get_leaderboard;";
+connection.query(query, (err, results, fields) => {
+  if (err) {
+    console.error("쿼리 실행에 실패했습니다:", err);
+    return;
+  }
+
+  console.log("쿼리 결과:", results);
+});
+
+var query = `
+  CREATE PROCEDURE get_leaderboard (
+    IN input_from INT,
+    IN input_to INT,
+  )
+  BEGIN
+    SELECT rank, user_id, wallet_address, profile_image, nickname, total_point
+    FROM (
+        SELECT 
+            ROW_NUMBER() OVER (ORDER BY total_point DESC) AS rank,
+            user_id,
+            wallet_address,
+            profile_image,
+            nickname,
+            total_point
+        FROM 
+            user
+    ) AS ranked_users
+    WHERE rank BETWEEN input_from AND input to
+  END;
+`;
+
+connection.query(query, (err, results, fields) => {
+  if (err) {
+    console.error("쿼리 실행에 실패했습니다:", err);
+    return;
+  }
+
+  console.log("쿼리 결과:", results);
+});
+
+// 7. 랭킹 페이지 : 사용자 등수
 var query = "DROP PROCEDURE IF EXISTS get_rank;";
 connection.query(query, (err, results, fields) => {
   if (err) {
@@ -195,17 +286,61 @@ connection.query(query, (err, results, fields) => {
 });
 
 var query = `
- CREATE PROCEDURE get_rank (IN type TINYINT)
+  CREATE PROCEDURE get_rank (
+    IN input_user_id CHAR(8)
+  )
+
   BEGIN
-    IF type = 1 THEN
-      SELECT profile_image, nickname, total_spin_point
-      FROM user
-      ORDER BY total_spin_point DESC;
-    ELSE IF type = 2 THEN
-      SELECT profile_image, nickname, total_slide_point
-      FROM user
-      ORDER BY total_slide_point DESC;
-    END IF;
+    SELECT rank
+    FROM (
+        SELECT 
+            user_id,
+            total_point,
+            ROW_NUMBER() OVER (ORDER BY total_point DESC) AS rank
+        FROM 
+            user
+    ) AS ranked_users
+    WHERE user_id = input_user_id;
+  END;
+`;
+
+connection.query(query, (err, results, fields) => {
+  if (err) {
+    console.error("쿼리 실행에 실패했습니다:", err);
+    return;
+  }
+
+  console.log("쿼리 결과:", results);
+});
+
+// 토큰 유효성 검증
+var query = "DROP PROCEDURE IF EXISTS verify_token;";
+connection.query(query, (err, results, fields) => {
+  if (err) {
+    console.error("쿼리 실행에 실패했습니다:", err);
+    return;
+  }
+
+  console.log("쿼리 결과:", results);
+});
+
+var query = `
+  CREATE PROCEDURE verify_token (
+    IN input_token CHAR(64)
+  )
+
+  BEGIN
+    SELECT 
+      IF(
+        EXISTS (
+            SELECT 1
+            FROM auth_tokens
+            WHERE token = input_token
+              AND expire_at >= CURDATE()
+        ), 
+        TRUE, 
+        FALSE
+      ) AS token_valid;
   END;
 `;
 
@@ -220,7 +355,7 @@ connection.query(query, (err, results, fields) => {
 
 // 수정(UPDATE) ########################################################################
 // 1. 메인 페이지 - 모달 : 회원 닉네임, 프로필 이미지, 추천인 코드
-var query = "DROP PROCEDURE IF EXISTS update_user_data;";
+var query = "DROP PROCEDURE IF EXISTS set_user;";
 connection.query(query, (err, results, fields) => {
   if (err) {
     console.error("쿼리 실행에 실패했습니다:", err);
@@ -231,7 +366,7 @@ connection.query(query, (err, results, fields) => {
 });
 
 var query = `
-  CREATE PROCEDURE update_user_data (
+  CREATE PROCEDURE set_user (
     IN input_user_id CHAR(8),
     IN input_profile_image VARCHAR(100),
     IN input_nickname VARCHAR(10),
@@ -255,8 +390,8 @@ connection.query(query, (err, results, fields) => {
   console.log("쿼리 결과:", results);
 });
 
-// 2. spin 카운트
-var query = "DROP PROCEDURE IF EXISTS update_spin_data;";
+// 3. auth_tokens
+var query = "DROP PROCEDURE IF EXISTS set_token;";
 connection.query(query, (err, results, fields) => {
   if (err) {
     console.error("쿼리 실행에 실패했습니다:", err);
@@ -267,48 +402,13 @@ connection.query(query, (err, results, fields) => {
 });
 
 var query = `
-  CREATE PROCEDURE update_spin_data (
-    IN input_user_id CHAR(8),
-    IN input_spin_count INT
+  CREATE PROCEDURE set_token (
+    IN input_token CHAR(64),
+    IN input_user_id CHAR(8)
   )
   BEGIN
-    UPDATE daily_spin 
-    SET spin_count = spin_count + input_spin_count,
-      spin_point = spin_point + (input_spin_count * (SELECT spin_point_per_count FROM config ORDER BY id DESC LIMIT 1;))
-    WHERE user_id = input_user_id AND date = CURDATE();
-  END;
-`;
-
-connection.query(query, (err, results, fields) => {
-  if (err) {
-    console.error("쿼리 실행에 실패했습니다:", err);
-    return;
-  }
-
-  console.log("쿼리 결과:", results);
-});
-
-// 3. slide 카운트
-var query = "DROP PROCEDURE IF EXISTS update_slide_data;";
-connection.query(query, (err, results, fields) => {
-  if (err) {
-    console.error("쿼리 실행에 실패했습니다:", err);
-    return;
-  }
-
-  console.log("쿼리 결과:", results);
-});
-
-var query = `
-  CREATE PROCEDURE update_slide_data (
-    IN input_user_id CHAR(8),
-    IN input_slide_count INT
-  )
-  BEGIN
-    UPDATE daily_slide 
-    SET slide_count = slide_count + input_slide_count,
-      slide_point = slide_point + (input_slide_count * (SELECT slide_point_per_count FROM config ORDER BY id DESC LIMIT 1;))
-    WHERE user_id = input_user_id AND date = CURDATE();
+    UPDATE auth_tokens SET token = input_token, created_at = CURDATE(), expired_at = CURDATE() + INTERVAL 7 DAY 
+    WHERE user_id = input_user_id
   END;
 `;
 
@@ -322,8 +422,8 @@ connection.query(query, (err, results, fields) => {
 });
 
 // 입력(INSERT) ########################################################################
-// 1. user
-var query = "DROP PROCEDURE IF EXISTS insert_user_data;";
+// 1. user : 처음 지갑 연결 시
+var query = "DROP PROCEDURE IF EXISTS insert_user;";
 connection.query(query, (err, results, fields) => {
   if (err) {
     console.error("쿼리 실행에 실패했습니다:", err);
@@ -334,7 +434,7 @@ connection.query(query, (err, results, fields) => {
 });
 
 var query = `
-  CREATE PROCEDURE insert_user_data (
+  CREATE PROCEDURE insert_user (
     IN input_user_id CHAR(8),
     IN input_wallet_address CHAR(42),
     IN input_nickname VARCHAR(10)
@@ -354,8 +454,8 @@ connection.query(query, (err, results, fields) => {
   console.log("쿼리 결과:", results);
 });
 
-// 2. spin 카운트
-var query = "DROP PROCEDURE IF EXISTS insert_spin_data;";
+// 2. auth_tokens : 처음 서명 시
+var query = "DROP PROCEDURE IF EXISTS insert_token;";
 connection.query(query, (err, results, fields) => {
   if (err) {
     console.error("쿼리 실행에 실패했습니다:", err);
@@ -366,13 +466,13 @@ connection.query(query, (err, results, fields) => {
 });
 
 var query = `
-  CREATE PROCEDURE insert_spin_data (
+  CREATE PROCEDURE insert_token (
     IN input_user_id CHAR(8),
-    IN input_spin_count INT
+    IN input_token CHAR(64),
   )
   BEGIN
-    INSERT INTO daily_spin (user_id, date, spin_count, spin_point) VALUES
-    (input_user_id, CURDATE(), input_spin_count, input_spin_count * (SELECT spin_point_per_count FROM config ORDER BY id DESC LIMIT 1;))
+    INSERT INTO auth_tokens (user_id, token, created_at, expires_at) VALUES
+    (input_user_id, input_token, CURDATE(), CURDATE() + INTERVAL 7 DAY )
   END;
 `;
 
@@ -385,8 +485,8 @@ connection.query(query, (err, results, fields) => {
   console.log("쿼리 결과:", results);
 });
 
-// 3. slide 카운트
-var query = "DROP PROCEDURE IF EXISTS insert_slide_data;";
+// 3. spin, slide 카운트
+var query = "DROP PROCEDURE IF EXISTS add_count;";
 connection.query(query, (err, results, fields) => {
   if (err) {
     console.error("쿼리 실행에 실패했습니다:", err);
@@ -397,13 +497,17 @@ connection.query(query, (err, results, fields) => {
 });
 
 var query = `
-  CREATE PROCEDURE insert_slide_data (
-    IN input_user_id CHAR(8),
+  CREATE PROCEDURE add_count (
+    IN input_token CHAR(64),
+    IN input_spin_count INT,
     IN input_slide_count INT
   )
   BEGIN
-    INSERT INTO daily_slide (user_id, date, spin_count, spin_point) VALUES
-    (input_user_id, CURDATE(), input_slide_count, input_slide_count * (SELECT slide_point_per_count FROM config ORDER BY id DESC LIMIT 1;))
+    INSERT INTO daily_count (user_id, date, spin_count, slide_count)
+    VALUES ((SELECT user_id FROM auth_tokens WHERE token = input_token), CURDATE(), input_spin_count, input_slide_count)
+    ON DUPLICATE KEY UPDATE 
+        spin_count = input_spin_count,
+        slide_count = input_slide_count;
   END;
 `;
 

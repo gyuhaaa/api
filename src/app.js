@@ -75,6 +75,7 @@ app.post("/getTotalCount", (req, res) => {
   const { userId } = req.body;
 
   // user 테이블에서 user_id가 일치하는 유저의 total_count, total_point값 반환.
+  // ** get_total_point
   const query = `
     CALL get_total_count (?);
   `;
@@ -104,6 +105,7 @@ app.post("/getDailyCount", (req, res) => {
   const { userId } = req.body;
 
   // daily_count테이블에서 userId가 일치하는 거 최대 7개까지 반환.
+  // ** get_week_point
   const query = `
     CALL get_daily_count (?);
   `;
@@ -162,6 +164,7 @@ app.post("/getRank", (req, res) => {
   const { address } = req.body;
 
   // user 테이블에서 address가 일치하는 항목이 total_point를 내림차순으로 정렬했을 때 몇 번째 인덱스에 위치하는지 반환
+  // ** user_id가 아니라 address를 사용하는 이유
   const query = `
     CALL get_rank (?);
   `;
@@ -219,7 +222,7 @@ app.post("/getLeaderboard", (req, res) => {
 app.get("/getTodayMaxCount", (req, res) => {
   // daily_count 테이블에서 date가 오늘과 일치하는 항목중에 spin_count + slide_count의 값이 가장 큰 항목의 spin_count, slide_count 값 반환
   const query = `
-    CALL get_today_max_count (?);
+    CALL get_today_max_count;
   `;
 
   connection.query(query, (err, results) => {
