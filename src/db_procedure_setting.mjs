@@ -45,7 +45,7 @@ var query = `
   BEGIN
       SELECT user_id, wallet_address, profile_image, nickname, referral_user_id
       FROM user
-      WHERE user_id = input_user_id
+      WHERE user_id = input_user_id;
   END;
 `;
 
@@ -83,7 +83,7 @@ var query = `
     FROM 
         daily_count
     WHERE user_id = input_user_id 
-      AND date = today
+      AND date = today;
   END;
 `;
 
@@ -128,7 +128,7 @@ var query = `
   CREATE PROCEDURE get_today_max_count ()
   BEGIN
     SELECT (SELECT spin_count FROM daily_count WHERE date = CURDATE() ORDER BY spin_count DESC LIMIT 1) AS spin_max_count, 
-      (SELECT slide_count FROM daily_count WHERE date = CURDATE() ORDER BY slide_count DESC LIMIT 1) AS slide_max_count
+      (SELECT slide_count FROM daily_count WHERE date = CURDATE() ORDER BY slide_count DESC LIMIT 1) AS slide_max_count;
   END;
 `;
 
@@ -207,11 +207,11 @@ var query = `
   BEGIN
     SELECT 
         wd.date,
-        COALESCE(spin_count * (SELECT spin_point_per_count FROM config ORDER BY id DESC LIMIT 1;) + slide_count * (SELECT slide_point_per_count FROM config ORDER BY id DESC LIMIT 1;), 0) AS total_point,
-        COALESCE(nft_count, 0) AS nft_count,
-        COALESCE(referral_point, 0) AS referral_point
-    LEFT JOIN 
-        daily_count
+        COALESCE(spin_count * (SELECT spin_point_per_count FROM config ORDER BY id DESC LIMIT 1) + slide_count * (SELECT slide_point_per_count FROM config ORDER BY id DESC LIMIT 1), 0) AS total_point,
+        COALESCE(nft_count, 0) AS nft_count, 
+        COALESCE(referral_point, 0) AS referral_point 
+    FROM 
+        daily_count 
     WHERE
         user_id = input_user_id 
         AND date >= CURDATE() - INTERVAL 6 DAY
@@ -248,32 +248,37 @@ connection.query(query, (err, results, fields) => {
 var query = `
   CREATE PROCEDURE get_leaderboard (
     IN input_from INT,
-    IN input_to INT,
+    IN input_to INT
   )
   BEGIN
-    SELECT rank, user_id, wallet_address, profile_image, nickname, total_point
+    SELECT 
+        num,
+        user_id,
+        wallet_address,
+        profile_image,
+        nickname,
+        total_point 
     FROM (
-        SELECT 
-            ROW_NUMBER() OVER (ORDER BY total_point DESC) AS rank,
-            user_id,
-            wallet_address,
-            profile_image,
-            nickname,
-            total_point
-        FROM 
-            user
-    ) AS ranked_users
-    WHERE rank BETWEEN input_from AND input to
+      SELECT
+        ROW_NUMBER() OVER (ORDER BY total_point DESC) AS num,
+        user_id,
+        wallet_address,
+        profile_image,
+        nickname,
+        total_point
+      FROM user
+    ) AS ranked_user
+    WHERE num BETWEEN input_from AND input_to;
   END;
 `;
 
 connection.query(query, (err, results, fields) => {
   if (err) {
-    console.error("쿼리 실행에 실패했습니다:", err);
+    console.error("get_leaderboard 쿼리 실행에 실패했습니다:", err);
     return;
   }
 
-  console.log("쿼리 결과:", results);
+  console.log("get_leaderboard 쿼리 결과:", results);
 });
 
 // 7. 랭킹 페이지 : 사용자 등수
@@ -293,12 +298,12 @@ var query = `
   )
 
   BEGIN
-    SELECT rank
+    SELECT my_rank
     FROM (
         SELECT 
             user_id,
             total_point,
-            ROW_NUMBER() OVER (ORDER BY total_point DESC) AS rank
+            ROW_NUMBER() OVER (ORDER BY total_point DESC) AS my_rank
         FROM 
             user
     ) AS ranked_users
@@ -308,11 +313,11 @@ var query = `
 
 connection.query(query, (err, results, fields) => {
   if (err) {
-    console.error("쿼리 실행에 실패했습니다:", err);
+    console.error("get_rank 쿼리 실행에 실패했습니다:", err);
     return;
   }
 
-  console.log("쿼리 결과:", results);
+  console.log("get_rank 쿼리 결과:", results);
 });
 
 // 토큰 유효성 검증
@@ -378,18 +383,18 @@ var query = `
     UPDATE user 
     SET profile_image = input_profile_image,
       nickname = input_nickname,
-      referral_user_id = input_referral_user_id,
-    WHERE user_id = (SELECT user_id FROM auth_tokens WHERE token = input_token LIMIT 1);
+      referral_user_id = input_referral_user_id
+    WHERE user_id = (SELECT user_id FROM auth_tokens WHERE token = input_token);
   END;
 `;
 
 connection.query(query, (err, results, fields) => {
   if (err) {
-    console.error("쿼리 실행에 실패했습니다:", err);
+    console.error("set_user 쿼리 실행에 실패했습니다:", err);
     return;
   }
 
-  console.log("쿼리 결과:", results);
+  console.log("set_user 쿼리 결과:", results);
 });
 
 // 3. auth_tokens
@@ -410,7 +415,7 @@ var query = `
   )
   BEGIN
     UPDATE auth_tokens SET token = input_token, created_at = CURDATE(), expired_at = CURDATE() + INTERVAL 7 DAY 
-    WHERE user_id = input_user_id
+    WHERE user_id = input_user_id;
   END;
 `;
 
@@ -443,7 +448,7 @@ var query = `
   )
   BEGIN
     INSERT INTO user (user_id, wallet_address, nickname) VALUES
-    (input_user_id, input_wallet_address, input_nickname)
+    (input_user_id, input_wallet_address, input_nickname);
   END;
 `;
 
@@ -470,11 +475,11 @@ connection.query(query, (err, results, fields) => {
 var query = `
   CREATE PROCEDURE insert_token (
     IN input_user_id CHAR(8),
-    IN input_token CHAR(64),
+    IN input_token CHAR(64)
   )
   BEGIN
     INSERT INTO auth_tokens (user_id, token, created_at, expires_at) VALUES
-    (input_user_id, input_token, CURDATE(), CURDATE() + INTERVAL 7 DAY )
+    (input_user_id, input_token, CURDATE(), CURDATE() + INTERVAL 7 DAY );
   END;
 `;
 
