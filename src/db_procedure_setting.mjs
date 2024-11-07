@@ -78,12 +78,12 @@ var query = `
     SET today = CURDATE();
     
     SELECT 
-        COALESCE(dc.spin_count, 0) AS spin_count,
-        COALESCE(dc.slide_count, 0) AS slide_count
+        COALESCE(spin_count, 0) AS spin_count,
+        COALESCE(slide_count, 0) AS slide_count
     FROM 
-        (SELECT input_user_id AS user_id) AS u
-    LEFT JOIN 
-        daily_count dc ON dc.user_id = u.user_id AND dc.date = today
+        daily_count
+    WHERE user_id = input_user_id 
+      AND date = today
   END;
 `;
 
@@ -369,7 +369,7 @@ connection.query(query, (err, results, fields) => {
 
 var query = `
   CREATE PROCEDURE set_user (
-    IN input_user_id CHAR(8),
+    IN input_token CHAR(8),
     IN input_profile_image VARCHAR(100),
     IN input_nickname VARCHAR(20),
     IN input_referral_user_id CHAR(8)
@@ -379,7 +379,7 @@ var query = `
     SET profile_image = input_profile_image,
       nickname = input_nickname,
       referral_user_id = input_referral_user_id,
-    WHERE user_id = input_user_id;
+    WHERE user_id = (SELECT user_id FROM auth_tokens WHERE token = input_token LIMIT 1);
   END;
 `;
 
@@ -551,7 +551,7 @@ var query = `
           CALL insert_token(input_user_id, input_token);
       -- 존재하면 set_token 호출
       ELSE
-          CALL set_token(input_token, input_user_id);
+          CALL set_token(input_user_id, input_token);
       END IF;
   END;
 `;
