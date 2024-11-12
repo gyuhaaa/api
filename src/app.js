@@ -320,7 +320,7 @@ app.post("/getAuthToken", (req, res) => {
 });
 
 // POST /setUser 경로에 대한 처리 (프로필 사진 업로드 O)
-app.post("/setUser", verifyToken, upload.single("image"), (req, res) => {
+app.post("/setUserImage", verifyToken, upload.single("image"), (req, res) => {
   const token = req.headers.authorization;
   const { nickname, referral_user_id } = req.body;
 

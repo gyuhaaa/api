@@ -87,9 +87,9 @@ connection.query(query, (err, results, fields) => {
 var query = `
   CREATE TABLE config (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    spin_point_per_count DECIMAL(4,2) NOT NULL,
-    slide_point_per_count DECIMAL(4,2) NOT NULL,
-    referral_benefit DECIMAL(4,2),
+    spin_point_per_count INT NOT NULL,
+    slide_point_per_count INT NOT NULL,
+    referral_benefit DECIMAL(2,2),
     nft_benefit INT,
     reg_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   );
@@ -190,7 +190,7 @@ var query = `
     user_id CHAR(8) NOT NULL,
     token CHAR(64) NOT NULL, 
     created_at DATE NOT NULL,
-    expires_at DATE NOT NULL,
+    expired_at DATE NOT NULL,
     FOREIGN KEY (user_id) REFERENCES user(user_id) ON DELETE CASCADE,
     UNIQUE (token)
   );

@@ -343,7 +343,7 @@ var query = `
             SELECT 1
             FROM auth_tokens
             WHERE token = input_token
-              AND expire_at >= CURDATE()
+              AND expired_at >= CURDATE()
         ), 
         TRUE, 
         FALSE
@@ -374,7 +374,7 @@ connection.query(query, (err, results, fields) => {
 
 var query = `
   CREATE PROCEDURE set_user (
-    IN input_token CHAR(8),
+    IN input_token CHAR(64),
     IN input_profile_image VARCHAR(100),
     IN input_nickname VARCHAR(20),
     IN input_referral_user_id CHAR(8)
@@ -414,8 +414,11 @@ var query = `
     IN input_token CHAR(64)
   )
   BEGIN
+    INSERT INTO auth_tokens
     UPDATE auth_tokens SET token = input_token, created_at = CURDATE(), expired_at = CURDATE() + INTERVAL 7 DAY 
     WHERE user_id = input_user_id;
+    ON DUPLICATE KEY UPDATE 
+      auth_tokens SET token = input_token, created_at = CURDATE(), expired_at = CURDATE() + INTERVAL 7 DAY
   END;
 `;
 
@@ -478,7 +481,7 @@ var query = `
     IN input_token CHAR(64)
   )
   BEGIN
-    INSERT INTO auth_tokens (user_id, token, created_at, expires_at) VALUES
+    INSERT INTO auth_tokens (user_id, token, created_at, expired_at) VALUES
     (input_user_id, input_token, CURDATE(), CURDATE() + INTERVAL 7 DAY );
   END;
 `;
@@ -510,11 +513,31 @@ var query = `
     IN input_slide_count INT
   )
   BEGIN
+    DECLARE temp_spin_point_per_count INT;
+    DECLARE temp_slide_point_per_count INT;
+    DECLARE temp_nft_count INT;
+    DECLARE temp_nft_benefit INT;
+    DECLARE temp_user_id CHAR(8);    
+    SELECT 
+      spin_point_per_count, 
+      slide_point_per_count,
+      nft_benefit
+    INTO 
+      temp_spin_point_per_count, 
+      temp_slide_point_per_count,
+      temp_nft_benefit
+    FROM config
+    ORDER BY id DESC LIMIT 1;
+
+    SELECT user_id INTO temp_user_id FROM auth_tokens WHERE token = input_token;
+    SELECT nft_count INTO temp_nft_count FROM user WHERE user_id = temp_user_id;
+
     INSERT INTO daily_count (user_id, date, spin_count, slide_count)
-    VALUES ((SELECT user_id FROM auth_tokens WHERE token = input_token), CURDATE(), input_spin_count, input_slide_count)
+    VALUES (temp_user_id, CURDATE(), input_spin_count, input_slide_count)
     ON DUPLICATE KEY UPDATE 
-        spin_count = input_spin_count,
-        slide_count = input_slide_count;
+        spin_count = spin_count + input_spin_count,
+        slide_count = slide_count + input_slide_count,
+        nft_point = nft_point + ((input_spin_count * temp_spin_point_per_count + input_slide_count * temp_slide_point_per_count) * temp_nft_count * temp_nft_benefit);
   END;
 `;
 
@@ -576,35 +599,108 @@ connection.query(query, (err, results, fields) => {
 // 이벤트 스케줄러 활성화
 var query = `SET GLOBAL event_scheduler = ON;`;
 // 매일 0시
-// daily_spin, daily_slide 데이터를 user 테이블에 업데이트
-// daily_spin, daily_slide 테이블에 관리자 데이터 insert (특정 일자에 아무 데이터도 없는 것을 방지하기 위해)
+// [daily_count] referral_point 업데이트 - 오늘 날짜, 데이터 없으면 insert / 있으면 update, spin_count*spin_point_per_count + slide_count*slide_point_per_count + daily_count.nft_point) * config.referral_benefit
+// daily_count 데이터를 user 테이블에 업데이트
 var query = `
   CREATE EVENT IF NOT EXISTS update_total_count
   ON SCHEDULE EVERY 1 DAY
   STARTS '2024-11-02 00:00:00'
   DO
   BEGIN
-    UPDATE user u
-    JOIN daily_spin sp ON u.user_id = sp.user_id
-    JOIN (SELECT spin_point_per_count FROM config ORDER BY id DESC LIMIT 1) c
-    SET 
-        u.total_spin_count = u.total_spin_count + sp.spin_count,
-        u.total_spin_point = (u.total_spin_count + sp.spin_count) * c.spin_point_per_count
-    WHERE sp.date = CURDATE();
+    DECLARE temp_spin_point_per_count INT;
+    DECLARE temp_slide_point_per_count INT;
+    DECLARE temp_referral_benefit DECIMAL(2,2);
+    SELECT 
+      spin_point_per_count, 
+      slide_point_per_count, 
+      nft_benefit
+    INTO 
+      temp_spin_point_per_count, 
+      temp_slide_point_per_count, 
+      temp_referral_benefit
+    FROM config
+    ORDER BY id DESC LIMIT 1;
+
+    
+    INSERT INTO daily_count (user_id, date, referral_point)
+    SELECT u.referral_user_id, CURDATE() AS date,
+      (dc.spin_count * temp_spin_point_per_count + dc.slide_count * temp_slide_point_per_count + dc.nft_point) * temp_referral_benefit AS temp_referral_point
+    FROM daily_count dc
+    LEFT JOIN user u
+    ON dc.user_id = u.user_id
+      AND u.referral_user_id IS NOT NULL
+    WHERE dc.date = CURDATE()
+    ON DUPLICATE KEY UPDATE 
+      date = CURDATE(),
+      referral_point = (spin_count * temp_spin_point_per_count + slide_count * temp_slide_point_per_count + nft_point) * temp_referral_benefit;
 
     UPDATE user u
-    JOIN daily_slide sl ON u.user_id = sl.user_id
-    JOIN (SELECT slide_point_per_count FROM config ORDER BY id DESC LIMIT 1) c
+    JOIN daily_count dc ON u.user_id = dc.user_id
     SET 
-        u.total_slide_count = u.total_slide_count + sl.slide_count,
-        u.total_slide_point = (u.total_slide_count + sl.slide_count) * c.slide_point_per_count
-    WHERE sl.date = CURDATE();
+        u.total_count = u.total_count + dc.spin_count + dc.slide_count,
+        u.total_point = u.total_count + dc.spin_count * temp_spin_point_per_count + dc.slide_count * temp_slide_point_per_count + dc.nft_point + dc.referral_point
+    WHERE dc.date = CURDATE();
 
-    INSERT INTO daily_spin (user_id, date)
-    VALUES ('00000000', CURDATE())
-    ON DUPLICATE KEY UPDATE date = CURDATE();
   END;
 `;
+
+var query = "DROP PROCEDURE IF EXISTS update_total_count;";
+connection.query(query, (err, results, fields) => {
+  if (err) {
+    console.error("쿼리 실행에 실패했습니다:", err);
+    return;
+  }
+
+  console.log("쿼리 결과:", results);
+});
+
+var query = `
+  CREATE PROCEDURE update_total_count ()
+  BEGIN
+    DECLARE temp_spin_point_per_count INT;
+    DECLARE temp_slide_point_per_count INT;
+    DECLARE temp_referral_benefit DECIMAL(2,2);
+    SELECT 
+      spin_point_per_count, 
+      slide_point_per_count, 
+      nft_benefit
+    INTO 
+      temp_spin_point_per_count, 
+      temp_slide_point_per_count, 
+      temp_referral_benefit
+    FROM config
+    ORDER BY id DESC LIMIT 1;
+    
+    INSERT INTO daily_count (user_id, date, referral_point)
+    SELECT u.referral_user_id, CURDATE() AS date,
+      (dc.spin_count * temp_spin_point_per_count + dc.slide_count * temp_slide_point_per_count + dc.nft_point) * temp_referral_benefit AS temp_referral_point
+    FROM daily_count dc
+    LEFT JOIN user u
+    ON dc.user_id = u.user_id
+      AND u.referral_user_id IS NOT NULL
+    WHERE dc.date = CURDATE()
+    ON DUPLICATE KEY UPDATE 
+      date = CURDATE(),
+      referral_point = (spin_count * temp_spin_point_per_count + slide_count * temp_slide_point_per_count + nft_point) * temp_referral_benefit;
+
+    UPDATE user u
+    JOIN daily_count dc ON u.user_id = dc.user_id
+    SET 
+        u.total_count = u.total_count + dc.spin_count + dc.slide_count,
+        u.total_point = u.total_count + dc.spin_count * temp_spin_point_per_count + dc.slide_count * temp_slide_point_per_count + dc.nft_point + dc.referral_point
+    WHERE dc.date = CURDATE();
+
+  END;
+`;
+
+connection.query(query, (err, results, fields) => {
+  if (err) {
+    console.error("안성민 쿼리 실행에 실패했습니다:", err);
+    return;
+  }
+
+  console.log("안성민 쿼리 결과:", results);
+});
 
 // db 연결 종료
 connection.end();
