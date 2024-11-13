@@ -71,13 +71,13 @@ app.use(express.json());
 
 // POST /getTodayCount 경로에 대한 처리
 app.post("/getTodayCount", (req, res) => {
-  const { userId } = req.body;
+  const { user_id } = req.body;
 
   const query = `
     CALL get_today_count (?);
   `;
 
-  const values = [userId];
+  const values = [user_id];
 
   connection.query(query, values, (err, results) => {
     if (err) {
@@ -99,7 +99,7 @@ app.post("/getTodayCount", (req, res) => {
 
 // POST /getTotalCount 경로에 대한 처리
 app.post("/getTotalCount", (req, res) => {
-  const { userId } = req.body;
+  const { user_id } = req.body;
 
   // user 테이블에서 user_id가 일치하는 유저의 total_count, total_point값 반환.
   // ** get_total_point
@@ -107,7 +107,7 @@ app.post("/getTotalCount", (req, res) => {
     CALL get_total_point (?);
   `;
 
-  const values = [userId];
+  const values = [user_id];
 
   connection.query(query, values, (err, results) => {
     if (err) {
@@ -129,15 +129,15 @@ app.post("/getTotalCount", (req, res) => {
 
 // POST /getDailyCount 경로에 대한 처리
 app.post("/getDailyCount", (req, res) => {
-  const { userId } = req.body;
+  const { user_id } = req.body;
 
-  // daily_count테이블에서 userId가 일치하는 거 최대 7개까지 반환.
+  // daily_count테이블에서 user_id가 일치하는 거 최대 7개까지 반환.
   // ** get_week_point
   const query = `
     CALL get_week_point (?);
   `;
 
-  const values = [userId];
+  const values = [user_id];
 
   connection.query(query, values, (err, results) => {
     if (err) {
@@ -159,15 +159,14 @@ app.post("/getDailyCount", (req, res) => {
 
 // POST /getUser 경로에 대한 처리
 app.post("/getUser", (req, res) => {
-  const { address } = req.body;
+  const { user_id } = req.body;
 
   // user 테이블에서 address가 일치하는 것 중에 user_id, wallet_address, nickname, profile, referral_user_id 반환
-  const userId = encodeEthereumAddress(address);
   const query = `
     CALL get_user (?);
   `;
 
-  const values = [userId];
+  const values = [user_id];
 
   connection.query(query, values, (err, results) => {
     if (err) {
@@ -189,7 +188,7 @@ app.post("/getUser", (req, res) => {
 
 // POST /getRank 경로에 대한 처리
 app.post("/getRank", (req, res) => {
-  const { userId } = req.body;
+  const { user_id } = req.body;
 
   // user 테이블에서 address가 일치하는 항목이 total_point를 내림차순으로 정렬했을 때 몇 번째 인덱스에 위치하는지 반환
   // ** user_id가 아니라 address를 사용하는 이유
@@ -197,7 +196,7 @@ app.post("/getRank", (req, res) => {
     CALL get_rank (?);
   `;
 
-  const values = [userId];
+  const values = [user_id];
 
   connection.query(query, values, (err, results) => {
     if (err) {
@@ -281,7 +280,7 @@ app.post("/getAuthToken", (req, res) => {
 
     // auth_tokens 테이블에서 userId와 일치하는 행이 존재한다면 삭제하고 새로 token, userId, create_at = 현재 시간, expired_at = 현재 시간 + 7일로 새로운 행 생성
     const query = `
-        CALL upsert_token (?, ?);
+        CALL set_token (?, ?);
       `;
 
     const values = [userId, token];

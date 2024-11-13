@@ -8,6 +8,14 @@ import { connection } from "../db_connection.js";
 // var query = "CREATE DATABASE wrecking_ball";
 // var query = "USE wrecking_ball";
 
+// 테이블 삭제
+// var query = "DROP TABLE `user`";
+// var query = "DROP TABLE `config`";
+// var query = "DROP TABLE `daily_count`";
+// var query = "DROP TABLE `auth_tokens`";
+
+// var query = "DROP TABLE `config`, `daily_count`, `auth_tokens`, `user`";
+
 // connection.query(query, (err, results, fields) => {
 //   if (err) {
 //     console.error("쿼리 실행에 실패했습니다:", err);
@@ -16,17 +24,6 @@ import { connection } from "../db_connection.js";
 
 //   console.log("쿼리 결과:", results);
 // });
-
-// 테이블 삭제
-// var query = "DROP TABLE `user`";
-// var query = "DROP TABLE `config`";
-// var query = "DROP TABLE `daily_spin`";
-// var query = "DROP TABLE `daily_slide`";
-// var query = "DROP TABLE `daily_count`";
-// var query = "DROP TABLE `auth_tokens`";
-
-// var query = "DROP TABLE `user`, `daily_spin`, `daily_slide`, `config`";
-// var query = "DROP TABLE `user`, `daily_count`, `config`, `auth_tokens`";
 
 // ####################################################################################
 // ######## 테이블 생성 ##################################################################
@@ -96,10 +93,10 @@ var query = `
 `;
 
 // 테스트 데이터 추가
-// var query = `
-//   INSERT INTO config (spin_point_per_count, slide_point_per_count) VALUES
-//   (5, 2);
-// `
+var query = `
+  INSERT INTO config (spin_point_per_count, slide_point_per_count, referral_benefit, nft_benefit) VALUES
+  (5, 2, 0.1, 1);
+`;
 // var query = `SELECT * FROM config`
 
 connection.query(query, (err, results, fields) => {
@@ -126,15 +123,14 @@ connection.query(query, (err, results, fields) => {
 
 var query = `
   CREATE TABLE daily_count (
-    id INT AUTO_INCREMENT PRIMARY KEY,
     user_id CHAR(8) NOT NULL,
     date DATE NOT NULL,
     spin_count INT DEFAULT 0,
     slide_count INT DEFAULT 0,
     nft_point INT DEFAULT 0,
     referral_point INT DEFAULT 0,
-    FOREIGN KEY (user_id) REFERENCES user(user_id) ON DELETE CASCADE,
-    UNIQUE (user_id, date)
+    PRIMARY KEY (user_id, date),
+    FOREIGN KEY (user_id) REFERENCES user(user_id) ON DELETE CASCADE
   );
 `;
 
@@ -186,13 +182,11 @@ connection.query(query, (err, results, fields) => {
 // 사용자 인증 테이블
 var query = `
   CREATE TABLE auth_tokens (
-    id INT AUTO_INCREMENT PRIMARY KEY,    
-    user_id CHAR(8) NOT NULL,
-    token CHAR(64) NOT NULL, 
+    user_id CHAR(8) NOT NULL PRIMARY KEY,
+    token CHAR(64) NOT NULL UNIQUE, 
     created_at DATE NOT NULL,
     expired_at DATE NOT NULL,
-    FOREIGN KEY (user_id) REFERENCES user(user_id) ON DELETE CASCADE,
-    UNIQUE (token)
+    FOREIGN KEY (user_id) REFERENCES user(user_id) ON DELETE CASCADE
   );
 `;
 connection.query(query, (err, results, fields) => {

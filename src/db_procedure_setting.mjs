@@ -206,17 +206,15 @@ var query = `
   )
   BEGIN
     SELECT 
-        wd.date,
+        date,
         COALESCE(spin_count * (SELECT spin_point_per_count FROM config ORDER BY id DESC LIMIT 1) + slide_count * (SELECT slide_point_per_count FROM config ORDER BY id DESC LIMIT 1), 0) AS total_point,
-        COALESCE(nft_count, 0) AS nft_count, 
+        COALESCE(nft_point, 0) AS nft_point, 
         COALESCE(referral_point, 0) AS referral_point 
     FROM 
         daily_count 
     WHERE
         user_id = input_user_id 
         AND date >= CURDATE() - INTERVAL 6 DAY
-    GROUP BY
-        date
     ORDER BY 
         date;
 
@@ -414,17 +412,16 @@ var query = `
     IN input_token CHAR(64)
   )
   BEGIN
-    INSERT INTO auth_tokens
-    UPDATE auth_tokens SET token = input_token, created_at = CURDATE(), expired_at = CURDATE() + INTERVAL 7 DAY 
-    WHERE user_id = input_user_id;
+    INSERT INTO auth_tokens (user_id, token, created_at, expired_at)
+    VALUES (input_user_id, input_token, CURDATE(), CURDATE() + INTERVAL 7 DAY)
     ON DUPLICATE KEY UPDATE 
-      auth_tokens SET token = input_token, created_at = CURDATE(), expired_at = CURDATE() + INTERVAL 7 DAY
+      token = input_token, created_at = CURDATE(), expired_at = CURDATE() + INTERVAL 7 DAY;
   END;
 `;
 
 connection.query(query, (err, results, fields) => {
   if (err) {
-    console.error("쿼리 실행에 실패했습니다:", err);
+    console.error("set_token 쿼리 실행에 실패했습니다:", err);
     return;
   }
 
@@ -632,7 +629,7 @@ var query = `
     WHERE dc.date = CURDATE()
     ON DUPLICATE KEY UPDATE 
       date = CURDATE(),
-      referral_point = (spin_count * temp_spin_point_per_count + slide_count * temp_slide_point_per_count + nft_point) * temp_referral_benefit;
+      referral_point = FLOOR((spin_count * temp_spin_point_per_count + slide_count * temp_slide_point_per_count + nft_point) * temp_referral_benefit);
 
     UPDATE user u
     JOIN daily_count dc ON u.user_id = dc.user_id
@@ -663,7 +660,7 @@ var query = `
     SELECT 
       spin_point_per_count, 
       slide_point_per_count, 
-      nft_benefit
+      referral_benefit
     INTO 
       temp_spin_point_per_count, 
       temp_slide_point_per_count, 
@@ -673,21 +670,21 @@ var query = `
     
     INSERT INTO daily_count (user_id, date, referral_point)
     SELECT u.referral_user_id, CURDATE() AS date,
-      (dc.spin_count * temp_spin_point_per_count + dc.slide_count * temp_slide_point_per_count + dc.nft_point) * temp_referral_benefit AS temp_referral_point
+      FLOOR((dc.spin_count * temp_spin_point_per_count + dc.slide_count * temp_slide_point_per_count + dc.nft_point) * temp_referral_benefit) AS temp_referral_point
     FROM daily_count dc
     LEFT JOIN user u
     ON dc.user_id = u.user_id
-      AND u.referral_user_id IS NOT NULL
     WHERE dc.date = CURDATE()
+      AND u.referral_user_id IS NOT NULL
     ON DUPLICATE KEY UPDATE 
       date = CURDATE(),
-      referral_point = (spin_count * temp_spin_point_per_count + slide_count * temp_slide_point_per_count + nft_point) * temp_referral_benefit;
+      referral_point = FLOOR((dc.spin_count * temp_spin_point_per_count + dc.slide_count * temp_slide_point_per_count + dc.nft_point) * temp_referral_benefit);
 
     UPDATE user u
     JOIN daily_count dc ON u.user_id = dc.user_id
     SET 
         u.total_count = u.total_count + dc.spin_count + dc.slide_count,
-        u.total_point = u.total_count + dc.spin_count * temp_spin_point_per_count + dc.slide_count * temp_slide_point_per_count + dc.nft_point + dc.referral_point
+        u.total_point = u.total_point + dc.spin_count * temp_spin_point_per_count + dc.slide_count * temp_slide_point_per_count + dc.nft_point + dc.referral_point
     WHERE dc.date = CURDATE();
 
   END;
